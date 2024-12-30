@@ -5,12 +5,12 @@ class Entity:
     def __init__(self, x, y):
         self.position = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
-        self.size = pygame.math.Vector2(32, 32)  # Default size
+        self.size = pygame.math.Vector2(TILE_SIZE * 0.8, TILE_SIZE * 0.8)
         self.color = WHITE  # Default color
         self.active = True
         
     def update(self, dt):
-        # Basic movement
+        # Update position based on velocity
         self.position += self.velocity * dt
         
     def render(self, surface):

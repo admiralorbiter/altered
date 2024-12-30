@@ -14,12 +14,14 @@ class TileMap:
         self.utility_layer = {}  # For things like wires, pipes, etc.
         self.decor_layer = {}    # For decorative elements
         
-        # Temporary tileset (replace with proper tileset loading later)
+        # Tileset with more distinct colors
         self.tileset = {
-            0: self._create_colored_tile((100, 100, 100)),  # Empty/default
-            1: self._create_colored_tile((34, 139, 34)),    # Grass
-            2: self._create_colored_tile((139, 69, 19)),    # Dirt
-            3: self._create_colored_tile((128, 128, 128)),  # Wall
+            0: self._create_colored_tile((100, 100, 100)),    # Empty/default
+            1: self._create_colored_tile((50, 200, 50)),      # Bright grass
+            2: self._create_colored_tile((160, 82, 45)),      # Rich dirt
+            3: self._create_colored_tile((80, 80, 80)),       # Dark wall
+            4: self._create_colored_tile((169, 169, 169)),    # Stone wall
+            5: self._create_colored_tile((139, 0, 0))         # Red wall
         }
         
     def _create_colored_tile(self, color):

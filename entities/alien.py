@@ -1,20 +1,23 @@
 import pygame
 from .base_entity import Entity
 from utils.config import *
+from utils.pathfinding import find_path
 
-class Player(Entity):
-    def __init__(self, x, y):
+class Alien(Entity):
+    def __init__(self, x, y, color=(255, 192, 203, 128)):
         # Convert tile coordinates to pixel coordinates
         pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
         
-        self.color = (255, 192, 203, 128)  # Pink with transparency
+        self.color = color
         self.speed = 300
         self.selected = False
         self.target_position = None
         self.current_tile = (x, y)
         self.moving = False
+        self.path = None
+        self.current_waypoint = 0
         
     def select(self):
         self.selected = True
@@ -23,29 +26,60 @@ class Player(Entity):
         self.selected = False
         
     def set_target(self, tile_x, tile_y):
-        if self.selected:
+        if not self.selected:
+            return
+        
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        target_tile = (tile_x, tile_y)
+        
+        # Find path using A*
+        self.path = find_path(current_tile, target_tile, self.game_state.tilemap)
+        
+        if self.path:
+            # Set next waypoint
+            self.current_waypoint = 1 if len(self.path) > 1 else 0
+            next_tile = self.path[self.current_waypoint]
             self.target_position = pygame.math.Vector2(
-                (tile_x + 0.5) * TILE_SIZE,
-                (tile_y + 0.5) * TILE_SIZE
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
             )
-            self.current_tile = (tile_x, tile_y)
             self.moving = True
     
     def update(self, dt):
         if self.target_position and self.moving:
-            # Move towards target
             direction = self.target_position - self.position
             distance = direction.length()
             
-            if distance < 1:  # Arrived at target
+            # Increased threshold slightly to prevent jittering
+            if distance < 2:  # Reached waypoint
+                # Snap to exact position
                 self.position = self.target_position
-                self.target_position = None
-                self.velocity = pygame.math.Vector2(0, 0)
-                self.moving = False
+                
+                # Check if there are more waypoints
+                if self.path and self.current_waypoint < len(self.path) - 1:
+                    self.current_waypoint += 1
+                    next_tile = self.path[self.current_waypoint]
+                    # Ensure exact pixel positioning
+                    self.target_position = pygame.math.Vector2(
+                        round((next_tile[0] + 0.5) * TILE_SIZE),
+                        round((next_tile[1] + 0.5) * TILE_SIZE)
+                    )
+                else:
+                    self.target_position = None
+                    self.path = None
+                    self.moving = False
+                    self.deselect()
             else:
-                # Move towards target at constant speed
-                self.velocity = direction.normalize() * self.speed
-                super().update(dt)
+                # Normalize direction and apply speed
+                normalized_dir = direction.normalize()
+                movement = normalized_dir * self.speed * dt
+                
+                # If we would overshoot the target, just snap to it
+                if movement.length() > distance:
+                    self.position = self.target_position
+                else:
+                    self.position += movement
     
     def render_with_offset(self, surface, camera_x, camera_y):
         # Create a surface with alpha for the player

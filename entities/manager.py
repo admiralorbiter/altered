@@ -10,8 +10,7 @@ class EntityManager:
             self.entities.remove(entity)
             
     def update(self, dt):
-        # Update all active entities
-        for entity in self.entities[:]:  # Copy list to allow safe removal
+        for entity in self.entities:
             if entity.active:
                 entity.update(dt)
             
