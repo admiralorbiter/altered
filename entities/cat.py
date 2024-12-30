@@ -1,5 +1,8 @@
 import pygame
 import random
+
+from entities.items.food import Food
+from utils.pathfinding import find_path
 from .base_entity import Entity
 from utils.config import *
 
@@ -17,6 +20,13 @@ class Cat(Entity):
         self.speed = random.uniform(250, 350)  # Varying speed between cats
         self.morale = 100
         
+        # Hunger system
+        self.hunger = 100  # Start full
+        self.max_hunger = 100
+        self.hunger_rate = 2  # Lose 2 hunger per second
+        self.critical_hunger = 10  # Percentage when cat starts seeking food
+        self.is_dead = False
+        
         # State tracking
         self.current_task = None
         self.target_position = None
@@ -24,6 +34,8 @@ class Cat(Entity):
         self.moving = False
         self.path = None
         self.current_waypoint = 0
+        self.seeking_food = False
+        self.target_food = None
         
         # Personality traits (randomly assigned)
         self.traits = self._generate_traits()
@@ -39,7 +51,77 @@ class Cat(Entity):
         num_traits = random.randint(1, 2)  # Each cat gets 1-2 traits
         return random.sample(possible_traits, num_traits)
     
+    def find_nearest_food(self):
+        """Find the nearest food item"""
+        nearest_food = None
+        min_distance = float('inf')
+        
+        for item in self.game_state.current_level.entity_manager.items:
+            if isinstance(item, Food) and item.active:
+                dx = item.position.x - self.position.x
+                dy = item.position.y - self.position.y
+                distance = (dx * dx + dy * dy) ** 0.5
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_food = item
+        
+        return nearest_food
+    
+    def eat_food(self, food):
+        """Consume the food item"""
+        if food and food.active:
+            self.hunger = min(self.max_hunger, self.hunger + food.nutrition_value)
+            self.health = min(self.max_health, self.health + food.nutrition_value * 0.5)
+            food.active = False  # Food disappears
+            self.seeking_food = False
+            self.target_food = None
+            return True
+        return False
+    
     def update(self, dt):
+        if self.is_dead:
+            return  # Dead cats don't update
+            
+        # Update hunger
+        self.hunger = max(0, self.hunger - self.hunger_rate * dt)
+        
+        # Check for death conditions
+        if self.health <= 0:
+            self.is_dead = True
+            self.color = (100, 100, 100, 200)  # Gray out dead cats
+            return
+            
+        # Health decreases when starving
+        if self.hunger <= 0:
+            self.health = max(0, self.health - 5 * dt)  # Lose 5 health per second when starving
+            
+        # Start seeking food when hungry
+        if self.hunger <= self.max_hunger * (self.critical_hunger / 100) and not self.seeking_food:
+            self.target_food = self.find_nearest_food()
+            if self.target_food:
+                self.seeking_food = True
+                current_tile = (int(self.position.x // TILE_SIZE), 
+                              int(self.position.y // TILE_SIZE))
+                target_tile = (int(self.target_food.position.x // TILE_SIZE),
+                             int(self.target_food.position.y // TILE_SIZE))
+                self.path = find_path(current_tile, target_tile, 
+                                    self.game_state.current_level.tilemap)
+                if self.path:
+                    self.current_waypoint = 1 if len(self.path) > 1 else 0
+                    next_tile = self.path[self.current_waypoint]
+                    self.target_position = pygame.math.Vector2(
+                        (next_tile[0] + 0.5) * TILE_SIZE,
+                        (next_tile[1] + 0.5) * TILE_SIZE
+                    )
+                    self.moving = True
+        
+        # Check if we reached food
+        if self.seeking_food and self.target_food:
+            distance = (self.target_food.position - self.position).length()
+            if distance < TILE_SIZE:
+                self.eat_food(self.target_food)
+        
         # Update morale based on conditions (simplified)
         if self.health < self.max_health * 0.5:
             self.morale = max(0, self.morale - 10 * dt)
@@ -63,9 +145,15 @@ class Cat(Entity):
                     self.target_position = None
                     self.path = None
                     self.moving = False
+                    if self.seeking_food:
+                        # If we were seeking food but didn't reach it, try finding new food
+                        self.seeking_food = False
+                        self.target_food = None
             else:
                 # Apply personality traits to movement
                 speed_modifier = 0.7 if 'lazy' in self.traits else 1.2 if 'aggressive' in self.traits else 1.0
+                if self.seeking_food and self.hunger < self.max_hunger * 0.05:  # Very hungry cats move faster
+                    speed_modifier *= 1.5
                 
                 normalized_dir = direction.normalize()
                 movement = normalized_dir * self.speed * speed_modifier * dt
@@ -135,4 +223,17 @@ class Cat(Entity):
             pygame.draw.rect(surface, (0, 255, 0),
                            (screen_x - self.size.x/2, 
                             screen_y - self.size.y/2 - 5,
-                            health_width, 3)) 
+                            health_width, 3))
+        
+        # Add hunger bar below health bar
+        if not self.is_dead:
+            hunger_width = (self.size.x * self.hunger) / self.max_hunger
+            bar_y_offset = -8 if self.health < self.max_health else -5
+            pygame.draw.rect(surface, (150, 150, 0), 
+                           (screen_x - self.size.x/2, 
+                            screen_y - self.size.y/2 + bar_y_offset,
+                            self.size.x, 3))
+            pygame.draw.rect(surface, (255, 255, 0),
+                           (screen_x - self.size.x/2, 
+                            screen_y - self.size.y/2 + bar_y_offset,
+                            hunger_width, 3)) 

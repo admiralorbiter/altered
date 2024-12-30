@@ -25,9 +25,15 @@ class BaseLevel(ABC):
         # Render tilemap
         self.tilemap.render(screen, int(camera_x), int(camera_y))
         
+        # Render items first (so they appear under entities)
+        for item in self.entity_manager.items:
+            if item.active:
+                item.render_with_offset(screen, camera_x, camera_y)
+        
         # Render entities with camera offset
         for entity in self.entity_manager.entities:
-            entity.render_with_offset(screen, camera_x, camera_y)
+            if entity.active:
+                entity.render_with_offset(screen, camera_x, camera_y)
         
     def handle_click(self, tile_x, tile_y):
         """Handle mouse click events"""

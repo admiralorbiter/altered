@@ -1,3 +1,4 @@
+from entities.items.food import Food
 from utils.pathfinding import find_path
 from .base_level import BaseLevel
 from entities.alien import Alien
@@ -56,6 +57,24 @@ class UfoLevel(BaseLevel):
             cat.game_state = self.game_state
             self.cats.append(cat)
             self.entity_manager.add_entity(cat)
+        
+        # Add food items near the crew
+        center_x = MAP_WIDTH // 2
+        center_y = MAP_HEIGHT // 2
+        radius = 5  # Spawn food within 5 tiles of center
+        
+        for _ in range(6):  # Add 6 food items
+            while True:
+                dx = random.randint(-radius, radius)
+                dy = random.randint(-radius, radius)
+                x = center_x + dx
+                y = center_y + dy
+                
+                # Check if position is valid
+                if self.tilemap.is_walkable(x, y):
+                    food = Food((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE)
+                    self.entity_manager.add_item(food)
+                    break
     
     def _create_ufo_map(self):
         # Fill with floor tiles

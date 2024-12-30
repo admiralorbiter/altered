@@ -7,6 +7,7 @@ from entities.cat import Cat
 from utils.config import *
 from core.tiles import TILE_GRASS, TILE_ROCK, TILE_WALL, TILE_BARRIER
 import random
+from entities.items.food import Food
 
 class AbductionLevel(BaseLevel):
     def __init__(self, game_state):
@@ -46,6 +47,35 @@ class AbductionLevel(BaseLevel):
                     cat.game_state = self.game_state
                     self.cats.append(cat)
                     self.entity_manager.add_entity(cat)
+                    break
+        
+        # Add food items near the aliens
+        center_x = MAP_WIDTH // 2
+        center_y = MAP_HEIGHT // 2
+        radius = 8  # Slightly larger radius for outdoor environment
+        
+        for _ in range(8):  # 8 food items
+            while True:
+                # Randomly choose between spawning near center or near barriers
+                if random.random() < 0.7:  # 70% chance to spawn near center
+                    dx = random.randint(-radius, radius)
+                    dy = random.randint(-radius, radius)
+                    x = center_x + dx
+                    y = center_y + dy
+                else:  # 30% chance to spawn near one of the barriers
+                    barrier = random.choice([
+                        (5, 5),
+                        (5, MAP_HEIGHT - 6),
+                        (MAP_WIDTH - 6, 5),
+                        (MAP_WIDTH - 6, MAP_HEIGHT - 6)
+                    ])
+                    x = barrier[0] + random.randint(-3, 3)
+                    y = barrier[1] + random.randint(-3, 3)
+                
+                # Check if position is valid
+                if self.tilemap.is_walkable(x, y):
+                    food = Food((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE)
+                    self.entity_manager.add_item(food)
                     break
     
     def _create_abduction_map(self):

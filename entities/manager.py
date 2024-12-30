@@ -1,24 +1,33 @@
 class EntityManager:
     def __init__(self):
         self.entities = []
+        self.items = []  # Add items list
         
     def add_entity(self, entity):
         self.entities.append(entity)
         
-    def remove_entity(self, entity):
-        if entity in self.entities:
-            self.entities.remove(entity)
+    def add_item(self, item):
+        self.items.append(item)
+        
+    def remove_item(self, item):
+        if item in self.items:
+            self.items.remove(item)
             
     def update(self, dt):
         for entity in self.entities:
             if entity.active:
                 entity.update(dt)
-            
-    def render(self, surface):
-        # Render all active entities
+                
+    def render(self, surface, camera_x, camera_y):
+        # Render all active entities and items
+        for item in self.items:
+            if item.active:
+                item.render_with_offset(surface, camera_x, camera_y)
+        
         for entity in self.entities:
             if entity.active:
-                entity.render(surface)
+                entity.render_with_offset(surface, camera_x, camera_y)
                 
     def clear(self):
-        self.entities.clear() 
+        self.entities.clear()
+        self.items.clear() 

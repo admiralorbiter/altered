@@ -26,7 +26,10 @@ def save_game(game_state, slot=None):
             entity.to_dict() for entity in game_state.entity_manager.entities
             if hasattr(entity, 'to_dict')
         ],
-        # Add more game state data as needed
+        "items": [
+            item.to_dict() for item in game_state.entity_manager.items
+            if hasattr(item, 'to_dict')
+        ],
         "timestamp": datetime.now().isoformat()
     }
     
