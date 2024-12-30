@@ -2,6 +2,7 @@ import pygame
 from .base_enemy import BaseEnemy
 from utils.config import *
 from utils.pathfinding import find_path
+import random
 
 class Human(BaseEnemy):
     def __init__(self, x, y):
@@ -34,40 +35,133 @@ class Human(BaseEnemy):
         # Update attack cooldown
         self.attack_timer = max(0, self.attack_timer - dt)
         
-        # Movement logic similar to Alien class
+        # Update AI state
+        self.update_ai_state(dt, self.game_state)
+        
+        # Handle different states
+        if self.state == 'idle':
+            # Randomly decide to start wandering
+            if random.random() < 0.01:  # 1% chance per frame to start wandering
+                self.start_wandering()
+                
+        elif self.state == 'patrol':
+            if not self.moving or not self.target_position:
+                self.start_wandering()
+                
+        elif self.state == 'chase':
+            if self.target:
+                # Update path to target every second
+                if not hasattr(self, 'path_update_timer'):
+                    self.path_update_timer = 0
+                self.path_update_timer -= dt
+                
+                if self.path_update_timer <= 0:
+                    self.path_update_timer = 1.0
+                    self.update_chase_path()
+        
+        # Movement logic
         if self.target_position and self.moving:
             direction = self.target_position - self.position
             distance = direction.length()
             
             if distance < 2:  # Reached waypoint
-                self.position = self.target_position
-                
-                if self.path and self.current_waypoint < len(self.path) - 1:
-                    self.current_waypoint += 1
+                self.handle_waypoint_reached()
+            else:
+                self.move_towards_target(direction, distance, dt)
+
+    def start_wandering(self):
+        """Start wandering to a random nearby position"""
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        
+        # Try to find a valid wandering target
+        for _ in range(10):  # Try 10 times
+            dx = random.randint(-5, 5)
+            dy = random.randint(-5, 5)
+            target_tile = (current_tile[0] + dx, current_tile[1] + dy)
+            
+            if self.game_state.current_level.tilemap.is_walkable(*target_tile):
+                self.path = find_path(current_tile, target_tile, 
+                                    self.game_state.current_level.tilemap)
+                if self.path:
+                    self.current_waypoint = 1 if len(self.path) > 1 else 0
                     next_tile = self.path[self.current_waypoint]
                     self.target_position = pygame.math.Vector2(
-                        round((next_tile[0] + 0.5) * TILE_SIZE),
-                        round((next_tile[1] + 0.5) * TILE_SIZE)
+                        (next_tile[0] + 0.5) * TILE_SIZE,
+                        (next_tile[1] + 0.5) * TILE_SIZE
                     )
-                else:
-                    self.target_position = None
-                    self.path = None
-                    self.moving = False
-            else:
-                normalized_dir = direction.normalize()
-                movement = normalized_dir * self.speed * dt
-                
-                if movement.length() > distance:
-                    self.position = self.target_position
-                else:
-                    self.position += movement
-                    
+                    self.moving = True
+                    break
+
+    def update_chase_path(self):
+        """Update path to chase target"""
+        if not self.target:
+            return
+        
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        target_tile = (int(self.target.position.x // TILE_SIZE),
+                      int(self.target.position.y // TILE_SIZE))
+        
+        self.path = find_path(current_tile, target_tile, 
+                             self.game_state.current_level.tilemap)
+        if self.path:
+            self.current_waypoint = 1 if len(self.path) > 1 else 0
+            next_tile = self.path[self.current_waypoint]
+            self.target_position = pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )
+            self.moving = True
+
+    def handle_waypoint_reached(self):
+        """Handle reaching a waypoint in the path"""
+        self.position = self.target_position
+        
+        if self.path and self.current_waypoint < len(self.path) - 1:
+            self.current_waypoint += 1
+            next_tile = self.path[self.current_waypoint]
+            self.target_position = pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )
+        else:
+            self.target_position = None
+            self.path = None
+            self.moving = False
+
+    def move_towards_target(self, direction, distance, dt):
+        """Move towards the current target"""
+        normalized_dir = direction.normalize()
+        movement = normalized_dir * self.speed * dt
+        
+        if movement.length() > distance:
+            self.position = self.target_position
+        else:
+            self.position += movement
+
     def render_with_offset(self, surface, camera_x, camera_y):
         if not self.active:
             return
             
         # Get zoom level from game state
         zoom_level = self.game_state.zoom_level
+        
+        # Draw detection range circle
+        screen_x = (self.position.x - camera_x) * zoom_level
+        screen_y = (self.position.y - camera_y) * zoom_level
+        range_radius = self.detection_range * zoom_level
+        
+        # Draw semi-transparent detection range
+        range_surface = pygame.Surface((range_radius * 2, range_radius * 2), pygame.SRCALPHA)
+        if self.state == 'chase':
+            pygame.draw.circle(range_surface, (255, 0, 0, 30), 
+                             (range_radius, range_radius), range_radius)
+        else:
+            pygame.draw.circle(range_surface, (100, 100, 100, 30), 
+                             (range_radius, range_radius), range_radius)
+        surface.blit(range_surface, 
+                    (screen_x - range_radius, screen_y - range_radius))
         
         # Calculate screen position with zoom
         screen_x = (self.position.x - camera_x) * zoom_level
