@@ -82,22 +82,48 @@ class Alien(Entity):
                     self.position += movement
     
     def render_with_offset(self, surface, camera_x, camera_y):
-        # Create a surface with alpha for the player
-        player_surface = pygame.Surface((self.size.x, self.size.y), pygame.SRCALPHA)
-        pygame.draw.rect(player_surface, self.color, 
-                        (0, 0, self.size.x, self.size.y))
-        
         # Calculate screen position
-        screen_x = self.position.x - camera_x - self.size.x/2
-        screen_y = self.position.y - camera_y - self.size.y/2
+        screen_x = self.position.x - camera_x
+        screen_y = self.position.y - camera_y
         
-        # Blit the semi-transparent player
-        surface.blit(player_surface, (screen_x, screen_y))
+        # Create a surface with alpha for the alien
+        alien_surface = pygame.Surface((self.size.x, self.size.y), pygame.SRCALPHA)
+        
+        # Draw alien body (oval)
+        ellipse_rect = (0, self.size.y * 0.2, self.size.x, self.size.y * 0.6)
+        pygame.draw.ellipse(alien_surface, self.color, ellipse_rect)
+        
+        # Draw alien head (circle)
+        head_size = self.size.x * 0.6
+        head_x = (self.size.x - head_size) / 2
+        pygame.draw.circle(alien_surface, self.color, 
+                          (self.size.x/2, self.size.y * 0.3),
+                          head_size/2)
+        
+        # Draw alien eyes (black circles)
+        eye_size = head_size * 0.3
+        eye_y = self.size.y * 0.25
+        pygame.draw.circle(alien_surface, (0, 0, 0), 
+                          (self.size.x/2 - eye_size, eye_y), eye_size/2)
+        pygame.draw.circle(alien_surface, (0, 0, 0), 
+                          (self.size.x/2 + eye_size, eye_y), eye_size/2)
+        
+        # Draw alien tentacles
+        tentacle_color = tuple(max(0, min(255, c + 30)) for c in self.color[:3]) + (self.color[3],)
+        for i in range(3):
+            start_x = self.size.x * (0.3 + 0.2 * i)
+            pygame.draw.line(alien_surface, tentacle_color,
+                            (start_x, self.size.y * 0.8),
+                            (start_x, self.size.y),
+                            3)
+        
+        # Blit the alien to the screen
+        surface.blit(alien_surface, 
+                    (screen_x - self.size.x/2, 
+                     screen_y - self.size.y/2))
         
         # Draw selection circle when selected
         if self.selected:
-            screen_x = self.position.x - camera_x
-            screen_y = self.position.y - camera_y
             pygame.draw.circle(surface, (255, 255, 0), 
                              (int(screen_x), int(screen_y)), 
                              int(self.size.x * 0.75), 2)
@@ -107,5 +133,5 @@ class Alien(Entity):
             target_screen_x = self.target_position.x - camera_x
             target_screen_y = self.target_position.y - camera_y
             pygame.draw.line(surface, (255, 255, 0),
-                           (self.position.x - camera_x, self.position.y - camera_y),
+                           (screen_x, screen_y),
                            (target_screen_x, target_screen_y), 1) 

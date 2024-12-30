@@ -76,22 +76,63 @@ class Cat(Entity):
                     self.position += movement
     
     def render_with_offset(self, surface, camera_x, camera_y):
+        # Calculate screen position
+        screen_x = self.position.x - camera_x
+        screen_y = self.position.y - camera_y
+        
         # Create a surface with alpha for the cat
         cat_surface = pygame.Surface((self.size.x, self.size.y), pygame.SRCALPHA)
-        pygame.draw.rect(cat_surface, self.color, 
-                        (0, 0, self.size.x, self.size.y))
         
-        # Calculate screen position
-        screen_x = self.position.x - camera_x - self.size.x/2
-        screen_y = self.position.y - camera_y - self.size.y/2
+        # Draw cat body (oval)
+        body_rect = (self.size.x * 0.2, self.size.y * 0.3, 
+                    self.size.x * 0.6, self.size.y * 0.5)
+        pygame.draw.ellipse(cat_surface, self.color, body_rect)
         
-        # Draw the cat
-        surface.blit(cat_surface, (screen_x, screen_y))
+        # Draw cat head (circle)
+        head_size = self.size.x * 0.4
+        pygame.draw.circle(cat_surface, self.color,
+                          (self.size.x * 0.35, self.size.y * 0.4),
+                          head_size/2)
+        
+        # Draw cat ears (triangles)
+        ear_color = tuple(max(0, min(255, c - 30)) for c in self.color[:3]) + (self.color[3],)
+        left_ear = [(self.size.x * 0.25, self.size.y * 0.3),
+                    (self.size.x * 0.35, self.size.y * 0.15),
+                    (self.size.x * 0.45, self.size.y * 0.3)]
+        right_ear = [(self.size.x * 0.35, self.size.y * 0.3),
+                     (self.size.x * 0.45, self.size.y * 0.15),
+                     (self.size.x * 0.55, self.size.y * 0.3)]
+        pygame.draw.polygon(cat_surface, ear_color, left_ear)
+        pygame.draw.polygon(cat_surface, ear_color, right_ear)
+        
+        # Draw cat eyes
+        eye_color = (0, 255, 0) if 'aggressive' in self.traits else (0, 200, 255)
+        pygame.draw.circle(cat_surface, eye_color,
+                          (self.size.x * 0.3, self.size.y * 0.35), 3)
+        pygame.draw.circle(cat_surface, eye_color,
+                          (self.size.x * 0.4, self.size.y * 0.35), 3)
+        
+        # Draw cat tail (curved line)
+        tail_points = [
+            (self.size.x * 0.8, self.size.y * 0.5),
+            (self.size.x * 0.9, self.size.y * 0.4),
+            (self.size.x * 0.95, self.size.y * 0.3)
+        ]
+        pygame.draw.lines(cat_surface, self.color, False, tail_points, 3)
+        
+        # Blit the cat to the screen
+        surface.blit(cat_surface, 
+                    (screen_x - self.size.x/2, 
+                     screen_y - self.size.y/2))
         
         # Draw health bar if damaged
         if self.health < self.max_health:
             health_width = (self.size.x * self.health) / self.max_health
             pygame.draw.rect(surface, (255, 0, 0), 
-                           (screen_x, screen_y - 5, self.size.x, 3))
+                           (screen_x - self.size.x/2, 
+                            screen_y - self.size.y/2 - 5,
+                            self.size.x, 3))
             pygame.draw.rect(surface, (0, 255, 0),
-                           (screen_x, screen_y - 5, health_width, 3)) 
+                           (screen_x - self.size.x/2, 
+                            screen_y - self.size.y/2 - 5,
+                            health_width, 3)) 
