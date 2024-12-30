@@ -1,6 +1,7 @@
 import pygame
 import sys
 from utils.config import *
+from utils.settings_manager import load_settings
 from states.menu_state import MenuState
 from states.game_state import GameState
 from states.pause_menu_state import PauseMenuState
@@ -15,6 +16,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.delta_time = 0
+        
+        # Load settings
+        self.settings = load_settings()
         
         # State management
         self.states = {

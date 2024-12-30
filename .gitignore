@@ -1,3 +1,7 @@
+# Ignore settings.json
+settings.json
+saves/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

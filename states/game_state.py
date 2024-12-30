@@ -21,6 +21,8 @@ class GameState(State):
             'abduction': AbductionLevel(self)
         }
         self.current_level = None
+        # Initialize the entity manager
+        self.entity_manager = EntityManager()
         
     def change_level(self, level_name):
         if self.current_level:

@@ -3,16 +3,20 @@ import pygame
 from states.pause_menu_state import PauseMenuState
 from .base_state import State
 from utils.config import *
+from utils.settings_manager import load_settings, save_settings
 
 class SettingsState(State):
     def __init__(self, game):
         super().__init__(game)
         self.font = pygame.font.Font(None, 64)
         
+        # Load saved settings
+        self.settings = load_settings()
+        
         # Settings options
-        self.options = ['Volume: 100%', 'Back']
+        self.options = [f'Volume: {self.settings["volume"]}%', 'Back']
         self.selected_option = 0
-        self.volume = 100
+        self.volume = self.settings["volume"]
         
         # Create text surfaces
         self.text_surfaces = []
@@ -47,6 +51,9 @@ class SettingsState(State):
     def update_volume_text(self):
         self.options[0] = f'Volume: {self.volume}%'
         self.text_surfaces[0] = self.font.render(self.options[0], True, WHITE)
+        # Save settings when volume changes
+        self.settings["volume"] = self.volume
+        save_settings(self.settings)
     
     def return_to_previous(self):
         # Return to pause menu if we came from there, otherwise main menu
