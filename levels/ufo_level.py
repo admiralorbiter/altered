@@ -1,9 +1,17 @@
+from utils.pathfinding import find_path
 from .base_level import BaseLevel
 from entities.alien import Alien
+from entities.cat import Cat
 from utils.config import *
 from core.tiles import TILE_FLOOR, TILE_WALL, TILE_BARRIER
+import random
+import pygame
 
 class UfoLevel(BaseLevel):
+    def __init__(self, game_state):
+        super().__init__(game_state)
+        self.cats = []  # Add cats list
+        
     def initialize(self):
         # Create UFO layout
         self._create_ufo_map()
@@ -34,6 +42,20 @@ class UfoLevel(BaseLevel):
             alien.game_state = self.game_state
             self.aliens.append(alien)
             self.entity_manager.add_entity(alien)
+            
+        # Add cats around the UFO
+        cat_positions = [
+            (center_x - 4, center_y - 4),
+            (center_x + 4, center_y - 4),
+            (center_x - 4, center_y + 4),
+            (center_x + 4, center_y + 4),
+        ]
+        
+        for x, y in cat_positions:
+            cat = Cat(x, y)
+            cat.game_state = self.game_state
+            self.cats.append(cat)
+            self.entity_manager.add_entity(cat)
     
     def _create_ufo_map(self):
         # Fill with floor tiles
@@ -61,4 +83,28 @@ class UfoLevel(BaseLevel):
                     self.tilemap.set_tile(x, y, TILE_BARRIER.name)
     
     def update(self, dt):
-        self.entity_manager.update(dt) 
+        self.entity_manager.update(dt)
+        
+        # Update cat wandering behavior
+        for cat in self.cats:
+            if not cat.moving and random.random() < 0.02:  # 2% chance to start moving each frame
+                # Find random walkable position
+                while True:
+                    dx = random.randint(-5, 5)
+                    dy = random.randint(-5, 5)
+                    target_x = int(cat.position.x // TILE_SIZE) + dx
+                    target_y = int(cat.position.y // TILE_SIZE) + dy
+                    
+                    if self.tilemap.is_walkable(target_x, target_y):
+                        current_tile = (int(cat.position.x // TILE_SIZE), 
+                                      int(cat.position.y // TILE_SIZE))
+                        cat.path = find_path(current_tile, (target_x, target_y), self.tilemap)
+                        if cat.path:
+                            cat.current_waypoint = 1 if len(cat.path) > 1 else 0
+                            next_tile = cat.path[cat.current_waypoint]
+                            cat.target_position = pygame.math.Vector2(
+                                (next_tile[0] + 0.5) * TILE_SIZE,
+                                (next_tile[1] + 0.5) * TILE_SIZE
+                            )
+                            cat.moving = True
+                        break 

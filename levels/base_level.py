@@ -56,4 +56,5 @@ class BaseLevel(ABC):
     def cleanup(self):
         """Clean up resources when leaving level"""
         self.entity_manager.clear()
-        self.aliens.clear() 
+        self.aliens.clear()
+        self.cats.clear() 
