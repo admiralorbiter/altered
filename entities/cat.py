@@ -164,76 +164,84 @@ class Cat(Entity):
                     self.position += movement
     
     def render_with_offset(self, surface, camera_x, camera_y):
-        # Calculate screen position
-        screen_x = self.position.x - camera_x
-        screen_y = self.position.y - camera_y
+        # Get zoom level from game state
+        zoom_level = self.game_state.zoom_level
+        
+        # Calculate screen position with zoom
+        screen_x = (self.position.x - camera_x) * zoom_level
+        screen_y = (self.position.y - camera_y) * zoom_level
+        
+        # Scale size based on zoom
+        scaled_size = pygame.Vector2(self.size.x * zoom_level, self.size.y * zoom_level)
         
         # Create a surface with alpha for the cat
-        cat_surface = pygame.Surface((self.size.x, self.size.y), pygame.SRCALPHA)
+        cat_surface = pygame.Surface((scaled_size.x, scaled_size.y), pygame.SRCALPHA)
         
         # Draw cat body (oval)
-        body_rect = (self.size.x * 0.2, self.size.y * 0.3, 
-                    self.size.x * 0.6, self.size.y * 0.5)
+        body_rect = (scaled_size.x * 0.2, scaled_size.y * 0.3, 
+                    scaled_size.x * 0.6, scaled_size.y * 0.5)
         pygame.draw.ellipse(cat_surface, self.color, body_rect)
         
         # Draw cat head (circle)
-        head_size = self.size.x * 0.4
+        head_size = scaled_size.x * 0.4
         pygame.draw.circle(cat_surface, self.color,
-                          (self.size.x * 0.35, self.size.y * 0.4),
+                          (scaled_size.x * 0.35, scaled_size.y * 0.4),
                           head_size/2)
         
         # Draw cat ears (triangles)
         ear_color = tuple(max(0, min(255, c - 30)) for c in self.color[:3]) + (self.color[3],)
-        left_ear = [(self.size.x * 0.25, self.size.y * 0.3),
-                    (self.size.x * 0.35, self.size.y * 0.15),
-                    (self.size.x * 0.45, self.size.y * 0.3)]
-        right_ear = [(self.size.x * 0.35, self.size.y * 0.3),
-                     (self.size.x * 0.45, self.size.y * 0.15),
-                     (self.size.x * 0.55, self.size.y * 0.3)]
+        left_ear = [(scaled_size.x * 0.25, scaled_size.y * 0.3),
+                    (scaled_size.x * 0.35, scaled_size.y * 0.15),
+                    (scaled_size.x * 0.45, scaled_size.y * 0.3)]
+        right_ear = [(scaled_size.x * 0.35, scaled_size.y * 0.3),
+                     (scaled_size.x * 0.45, scaled_size.y * 0.15),
+                     (scaled_size.x * 0.55, scaled_size.y * 0.3)]
         pygame.draw.polygon(cat_surface, ear_color, left_ear)
         pygame.draw.polygon(cat_surface, ear_color, right_ear)
         
         # Draw cat eyes
         eye_color = (0, 255, 0) if 'aggressive' in self.traits else (0, 200, 255)
+        eye_size = max(3 * zoom_level, 1)
         pygame.draw.circle(cat_surface, eye_color,
-                          (self.size.x * 0.3, self.size.y * 0.35), 3)
+                          (scaled_size.x * 0.3, scaled_size.y * 0.35), eye_size)
         pygame.draw.circle(cat_surface, eye_color,
-                          (self.size.x * 0.4, self.size.y * 0.35), 3)
+                          (scaled_size.x * 0.4, scaled_size.y * 0.35), eye_size)
         
         # Draw cat tail (curved line)
         tail_points = [
-            (self.size.x * 0.8, self.size.y * 0.5),
-            (self.size.x * 0.9, self.size.y * 0.4),
-            (self.size.x * 0.95, self.size.y * 0.3)
+            (scaled_size.x * 0.8, scaled_size.y * 0.5),
+            (scaled_size.x * 0.9, scaled_size.y * 0.4),
+            (scaled_size.x * 0.95, scaled_size.y * 0.3)
         ]
         pygame.draw.lines(cat_surface, self.color, False, tail_points, 3)
         
         # Blit the cat to the screen
         surface.blit(cat_surface, 
-                    (screen_x - self.size.x/2, 
-                     screen_y - self.size.y/2))
+                    (screen_x - scaled_size.x/2, 
+                     screen_y - scaled_size.y/2))
         
-        # Draw health bar if damaged
+        # Draw health and hunger bars
         if self.health < self.max_health:
-            health_width = (self.size.x * self.health) / self.max_health
+            bar_height = max(3 * zoom_level, 1)
+            health_width = (scaled_size.x * self.health) / self.max_health
             pygame.draw.rect(surface, (255, 0, 0), 
-                           (screen_x - self.size.x/2, 
-                            screen_y - self.size.y/2 - 5,
-                            self.size.x, 3))
+                           (screen_x - scaled_size.x/2, 
+                            screen_y - scaled_size.y/2 - 5 * zoom_level,
+                            scaled_size.x, bar_height))
             pygame.draw.rect(surface, (0, 255, 0),
-                           (screen_x - self.size.x/2, 
-                            screen_y - self.size.y/2 - 5,
-                            health_width, 3))
+                           (screen_x - scaled_size.x/2, 
+                            screen_y - scaled_size.y/2 - 5 * zoom_level,
+                            health_width, bar_height))
         
         # Add hunger bar below health bar
         if not self.is_dead:
-            hunger_width = (self.size.x * self.hunger) / self.max_hunger
+            hunger_width = (scaled_size.x * self.hunger) / self.max_hunger
             bar_y_offset = -8 if self.health < self.max_health else -5
             pygame.draw.rect(surface, (150, 150, 0), 
-                           (screen_x - self.size.x/2, 
-                            screen_y - self.size.y/2 + bar_y_offset,
-                            self.size.x, 3))
+                           (screen_x - scaled_size.x/2, 
+                            screen_y - scaled_size.y/2 + bar_y_offset,
+                            scaled_size.x, 3))
             pygame.draw.rect(surface, (255, 255, 0),
-                           (screen_x - self.size.x/2, 
-                            screen_y - self.size.y/2 + bar_y_offset,
+                           (screen_x - scaled_size.x/2, 
+                            screen_y - scaled_size.y/2 + bar_y_offset,
                             hunger_width, 3)) 

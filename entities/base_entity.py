@@ -47,8 +47,15 @@ class Entity:
     
     def render_with_offset(self, surface, camera_x, camera_y):
         """Render the entity with camera offset"""
-        screen_x = self.position.x - camera_x - self.size.x/2
-        screen_y = self.position.y - camera_y - self.size.y/2
+        # Get zoom level from game state
+        zoom_level = self.game_state.zoom_level
+        
+        # Calculate screen position
+        screen_x = (self.position.x - camera_x)
+        screen_y = (self.position.y - camera_y)
+        
+        # Draw the entity
         pygame.draw.rect(surface, self.color, 
-                        (screen_x, screen_y,
+                        (screen_x - self.size.x/2,
+                         screen_y - self.size.y/2,
                          self.size.x, self.size.y)) 

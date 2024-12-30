@@ -3,9 +3,10 @@ from utils.config import *
 from .tiles import TILES, TILE_FLOOR, Tile
 
 class TileMap:
-    def __init__(self, width, height):
+    def __init__(self, width, height, game_state):
         self.width = width
         self.height = height
+        self.game_state = game_state  # Store reference to game_state
         
         # Store tile objects instead of just IDs
         self.tiles = [[TILE_FLOOR for _ in range(width)] for _ in range(height)]
@@ -27,21 +28,30 @@ class TileMap:
         return tile and tile.walkable
         
     def render(self, surface, camera_x, camera_y):
-        """Render visible tiles"""
-        start_x = max(0, camera_x // TILE_SIZE)
-        start_y = max(0, camera_y // TILE_SIZE)
-        end_x = min(self.width, (camera_x + WINDOW_WIDTH) // TILE_SIZE + 1)
-        end_y = min(self.height, (camera_y + WINDOW_HEIGHT) // TILE_SIZE + 1)
+        """Render visible tiles with zoom"""
+        zoom_level = self.game_state.zoom_level
         
+        # Calculate visible area in tile coordinates
+        start_x = max(0, int(camera_x // TILE_SIZE))
+        start_y = max(0, int(camera_y // TILE_SIZE))
+        end_x = min(self.width, int((camera_x + WINDOW_WIDTH / zoom_level) // TILE_SIZE) + 1)
+        end_y = min(self.height, int((camera_y + WINDOW_HEIGHT / zoom_level) // TILE_SIZE) + 1)
+        
+        # Render visible tiles
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 tile = self.tiles[y][x]
-                screen_x = x * TILE_SIZE - camera_x
-                screen_y = y * TILE_SIZE - camera_y
                 
-                # Draw tile
+                # Calculate screen position with zoom
+                screen_x = (x * TILE_SIZE - camera_x) * zoom_level
+                screen_y = (y * TILE_SIZE - camera_y) * zoom_level
+                
+                # Draw tile scaled by zoom
                 pygame.draw.rect(surface, tile.color, 
-                               (screen_x, screen_y, TILE_SIZE, TILE_SIZE))
+                               (screen_x, screen_y, 
+                                TILE_SIZE * zoom_level, TILE_SIZE * zoom_level))
                 # Add grid lines
                 pygame.draw.rect(surface, (50, 50, 50), 
-                               (screen_x, screen_y, TILE_SIZE, TILE_SIZE), 1)
+                               (screen_x, screen_y, 
+                                TILE_SIZE * zoom_level, TILE_SIZE * zoom_level), 
+                               max(1, int(zoom_level)))

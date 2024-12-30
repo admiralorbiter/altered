@@ -8,6 +8,7 @@ from utils.config import *
 from core.tiles import TILE_GRASS, TILE_ROCK, TILE_WALL, TILE_BARRIER
 import random
 from entities.items.food import Food
+from entities.enemies.human import Human
 
 class AbductionLevel(BaseLevel):
     def __init__(self, game_state):
@@ -74,9 +75,24 @@ class AbductionLevel(BaseLevel):
                 
                 # Check if position is valid
                 if self.tilemap.is_walkable(x, y):
-                    food = Food((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE)
+                    food = Food(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2)
+                    food.game_state = self.game_state  # Make sure game_state is set
                     self.entity_manager.add_item(food)
                     break
+        
+        # Add some human enemies with patrol points
+        patrol_routes = [
+            [(10, 10), (20, 10), (20, 20), (10, 20)],  # Square patrol
+            [(5, 5), (15, 5), (10, 15)],  # Triangle patrol
+            [(30, 30), (40, 30)]  # Linear patrol
+        ]
+        
+        for route in patrol_routes:
+            human = Human(route[0][0], route[0][1])
+            human.game_state = self.game_state
+            human.set_patrol_points(route)
+            self.enemies.append(human)
+            self.entity_manager.add_entity(human)
     
     def _create_abduction_map(self):
         # Fill with grass (green)

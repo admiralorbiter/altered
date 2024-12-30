@@ -1,4 +1,6 @@
 import pygame
+
+from utils.config import TILE_SIZE
 from .base_item import Item
 
 class Food(Item):
@@ -7,6 +9,7 @@ class Food(Item):
         self.name = "Apple"
         self.description = "A fresh, red apple"
         self.nutrition_value = 100
+        self.position = pygame.Vector2(x, y)  # Store raw position
         
     def use(self, user):
         if hasattr(user, 'health'):
@@ -18,29 +21,88 @@ class Food(Item):
             return True  # Item was consumed
         return False
         
-    def render_at_position(self, surface, x, y):
+    def render_with_offset(self, surface, camera_x, camera_y):
+        # Get zoom level from game state
+        zoom_level = self.game_state.zoom_level
+        
+        # Calculate screen position with zoom
+        screen_x = (self.position.x - camera_x) * zoom_level
+        screen_y = (self.position.y - camera_y) * zoom_level
+        
+        # Scale size based on zoom (make it slightly smaller than tile)
+        scaled_size = TILE_SIZE * 0.6 * zoom_level
+        
+        # Create a surface with alpha for the apple
+        apple_surface = pygame.Surface((scaled_size, scaled_size), pygame.SRCALPHA)
+        
         # Draw apple body (red circle)
         apple_color = (255, 0, 0)  # Red
-        pygame.draw.circle(surface, apple_color, 
-                         (x + self.size.x/2, y + self.size.y/2), 
-                         self.size.x/2)
+        pygame.draw.circle(apple_surface, apple_color, 
+                         (scaled_size/2, scaled_size/2), 
+                         scaled_size/2)
         
         # Add highlight (small white oval)
-        highlight_color = (255, 255, 255)
-        highlight_rect = pygame.Rect(x + self.size.x/3, y + self.size.y/4, 
-                                   self.size.x/4, self.size.y/6)
-        pygame.draw.ellipse(surface, highlight_color, highlight_rect)
+        highlight_color = (255, 255, 255, 128)  # Semi-transparent white
+        highlight_rect = pygame.Rect(scaled_size/3, 
+                                   scaled_size/4, 
+                                   scaled_size/4, scaled_size/6)
+        pygame.draw.ellipse(apple_surface, highlight_color, highlight_rect)
         
         # Add stem (brown rectangle)
         stem_color = (101, 67, 33)  # Brown
-        stem_rect = pygame.Rect(x + self.size.x/2 - 2, y + 2, 4, 6)
-        pygame.draw.rect(surface, stem_color, stem_rect)
+        stem_rect = pygame.Rect(scaled_size/2 - 2 * zoom_level, 
+                              2 * zoom_level, 
+                              4 * zoom_level, 6 * zoom_level)
+        pygame.draw.rect(apple_surface, stem_color, stem_rect)
         
         # Add leaf (green triangle)
         leaf_color = (34, 139, 34)  # Forest Green
         leaf_points = [
-            (x + self.size.x/2 + 4, y + 4),  # Tip
-            (x + self.size.x/2 - 2, y + 2),  # Base
-            (x + self.size.x/2 + 2, y + 8)   # Back
+            (scaled_size/2 + 4 * zoom_level, 4 * zoom_level),
+            (scaled_size/2 - 2 * zoom_level, 2 * zoom_level),
+            (scaled_size/2 + 2 * zoom_level, 8 * zoom_level)
         ]
-        pygame.draw.polygon(surface, leaf_color, leaf_points) 
+        pygame.draw.polygon(apple_surface, leaf_color, leaf_points)
+        
+        # Blit the apple surface to the screen
+        surface.blit(apple_surface,
+                    (screen_x - scaled_size/2,
+                     screen_y - scaled_size/2))
+        
+    def render_at_position(self, surface, x, y):
+        """Render the food item at a specific position (used for inventory)"""
+        # Create a small surface for the food icon
+        icon_size = 32
+        food_surface = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
+        
+        # Draw apple body (red circle)
+        apple_color = (255, 0, 0)  # Red
+        pygame.draw.circle(food_surface, apple_color, 
+                         (icon_size/2, icon_size/2), 
+                         icon_size/2)
+        
+        # Add highlight (small white oval)
+        highlight_color = (255, 255, 255)
+        highlight_rect = pygame.Rect(icon_size/3, 
+                                   icon_size/4, 
+                                   icon_size/4, icon_size/6)
+        pygame.draw.ellipse(food_surface, highlight_color, highlight_rect)
+        
+        # Add stem (brown rectangle)
+        stem_color = (101, 67, 33)  # Brown
+        stem_rect = pygame.Rect(icon_size/2 - 2, 
+                              2, 
+                              4, 6)
+        pygame.draw.rect(food_surface, stem_color, stem_rect)
+        
+        # Add leaf (green triangle)
+        leaf_color = (34, 139, 34)  # Forest Green
+        leaf_points = [
+            (icon_size/2 + 4, 4),
+            (icon_size/2 - 2, 2),
+            (icon_size/2 + 2, 8)
+        ]
+        pygame.draw.polygon(food_surface, leaf_color, leaf_points)
+        
+        # Blit the food surface to the main surface
+        surface.blit(food_surface, (x, y)) 

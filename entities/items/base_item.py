@@ -10,6 +10,7 @@ class Item(ABC):
         self.active = True
         self.name = "Unknown Item"
         self.description = "An mysterious item"
+        self.game_state = None  # Will be set when item is added to level
         
     def pick_up(self, entity):
         """Called when an entity picks up the item"""

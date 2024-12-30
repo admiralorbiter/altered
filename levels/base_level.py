@@ -1,14 +1,17 @@
 from abc import ABC, abstractmethod
+
+import pygame
 from core.tilemap import TileMap
 from entities.manager import EntityManager
-from utils.config import MAP_HEIGHT, MAP_WIDTH, TILE_SIZE
+from utils.config import BLACK, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH
 
 class BaseLevel(ABC):
     def __init__(self, game_state):
         self.game_state = game_state
-        self.tilemap = TileMap(MAP_WIDTH, MAP_HEIGHT)
-        self.entity_manager = EntityManager()
+        self.tilemap = TileMap(MAP_WIDTH, MAP_HEIGHT, game_state)
+        self.entity_manager = EntityManager(game_state)
         self.aliens = []
+        self.enemies = []
         
     @abstractmethod
     def initialize(self):
@@ -22,15 +25,17 @@ class BaseLevel(ABC):
         
     def render(self, screen, camera_x, camera_y):
         """Render the level and all its entities"""
-        # Render tilemap
-        self.tilemap.render(screen, int(camera_x), int(camera_y))
+        # Fill background
+        screen.fill(BLACK)
         
-        # Render items first (so they appear under entities)
+        # Render tilemap
+        self.tilemap.render(screen, camera_x, camera_y)
+        
+        # Render entities and items
         for item in self.entity_manager.items:
             if item.active:
                 item.render_with_offset(screen, camera_x, camera_y)
         
-        # Render entities with camera offset
         for entity in self.entity_manager.entities:
             if entity.active:
                 entity.render_with_offset(screen, camera_x, camera_y)

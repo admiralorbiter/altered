@@ -1,12 +1,15 @@
 class EntityManager:
-    def __init__(self):
+    def __init__(self, game_state):
+        self.game_state = game_state
         self.entities = []
-        self.items = []  # Add items list
+        self.items = []
         
     def add_entity(self, entity):
+        entity.game_state = self.game_state
         self.entities.append(entity)
         
     def add_item(self, item):
+        item.game_state = self.game_state
         self.items.append(item)
         
     def remove_item(self, item):

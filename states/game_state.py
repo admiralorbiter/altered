@@ -11,10 +11,19 @@ import random
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
 from systems.ui import HUD
+from systems.ai_system import AISystem
 
 class GameState(State):
     def __init__(self, game):
         super().__init__(game)
+        
+        # Camera and zoom properties
+        self.camera_x = 0
+        self.camera_y = 0
+        self.zoom_level = 1.0
+        self.min_zoom = 0.5  # Maximum zoom out (half size)
+        self.max_zoom = 2.0  # Maximum zoom in (double size)
+        self.zoom_speed = 0.1  # How much to zoom per scroll
         
         # Level management
         self.levels = {
@@ -23,8 +32,9 @@ class GameState(State):
         }
         self.current_level = None
         # Initialize the entity manager
-        self.entity_manager = EntityManager()
+        self.entity_manager = EntityManager(self)
         self.hud = HUD(self)
+        self.ai_system = AISystem()
         
     def change_level(self, level_name):
         if self.current_level:
@@ -52,14 +62,29 @@ class GameState(State):
                     self.change_level(new_level)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
+                    # Convert screen coordinates to world coordinates considering zoom
                     mouse_x, mouse_y = pygame.mouse.get_pos()
-                    world_x = mouse_x + int(self.camera_x)
-                    world_y = mouse_y + int(self.camera_y)
-                    tile_x = world_x // TILE_SIZE
-                    tile_y = world_y // TILE_SIZE
+                    world_x = (mouse_x / self.zoom_level) + int(self.camera_x)
+                    world_y = (mouse_y / self.zoom_level) + int(self.camera_y)
+                    tile_x = int(world_x // TILE_SIZE)
+                    tile_y = int(world_y // TILE_SIZE)
                     
                     # Delegate click handling to current level
                     self.current_level.handle_click(tile_x, tile_y)
+            elif event.type == pygame.MOUSEWHEEL:
+                # Zoom in/out with mouse wheel
+                old_zoom = self.zoom_level
+                self.zoom_level = max(self.min_zoom, 
+                                    min(self.max_zoom, 
+                                        self.zoom_level + event.y * self.zoom_speed))
+                
+                # Adjust camera to zoom towards mouse position
+                if old_zoom != self.zoom_level:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    # Calculate zoom adjustment to center on mouse position
+                    zoom_factor = self.zoom_level / old_zoom
+                    self.camera_x += (mouse_x / old_zoom) * (1 - zoom_factor)
+                    self.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
 
     def update(self, dt):
         if self.current_level:
@@ -69,20 +94,46 @@ class GameState(State):
             followed_alien = next((alien for alien in self.current_level.aliens if alien.selected), 
                                 self.current_level.aliens[0])
             
-            self.camera_x = followed_alien.position.x - WINDOW_WIDTH // 2
-            self.camera_y = followed_alien.position.y - WINDOW_HEIGHT // 2
+            # Adjust camera position based on zoom level
+            visible_width = WINDOW_WIDTH / self.zoom_level
+            visible_height = WINDOW_HEIGHT / self.zoom_level
+            
+            target_x = followed_alien.position.x - visible_width/2
+            target_y = followed_alien.position.y - visible_height/2
             
             # Keep camera in bounds
-            self.camera_x = max(0, min(self.camera_x, MAP_WIDTH * TILE_SIZE - WINDOW_WIDTH))
-            self.camera_y = max(0, min(self.camera_y, MAP_HEIGHT * TILE_SIZE - WINDOW_HEIGHT))
+            max_x = MAP_WIDTH * TILE_SIZE - visible_width
+            max_y = MAP_HEIGHT * TILE_SIZE - visible_height
+            self.camera_x = max(0, min(target_x, max_x))
+            self.camera_y = max(0, min(target_y, max_y))
 
         self.hud.update(dt)
+        self.ai_system.update(dt, self)
 
     def render(self, screen):
+        # Fill background
         screen.fill(BLACK)
+        
         if self.current_level:
-            self.current_level.render(screen, self.camera_x, self.camera_y)
-        self.hud.draw(screen)
+            # Create a surface for the game world
+            world_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+            world_surface.fill(BLACK)
+            
+            # Calculate visible area
+            visible_width = WINDOW_WIDTH / self.zoom_level
+            visible_height = WINDOW_HEIGHT / self.zoom_level
+            
+            # Render the level
+            self.current_level.render(world_surface, self.camera_x, self.camera_y)
+            
+            # Blit the world surface to the screen
+            screen.blit(world_surface, (0, 0))
+            
+            # Draw HUD on top
+            self.hud.draw(screen)
+        
+        # Flip display
+        pygame.display.flip()
 
     def save_game_state(self, slot=None):
         filepath = save_game(self, slot)
