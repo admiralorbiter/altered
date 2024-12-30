@@ -34,7 +34,7 @@ class Alien(Entity):
         target_tile = (tile_x, tile_y)
         
         # Find path using A*
-        self.path = find_path(current_tile, target_tile, self.game_state.tilemap)
+        self.path = find_path(current_tile, target_tile, self.game_state.current_level.tilemap)
         
         if self.path:
             # Set next waypoint

@@ -11,41 +11,70 @@ class MenuState(State):
         self.title = self.font.render("ALTERED", True, WHITE)
         self.title_rect = self.title.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 4))
         
-        # Menu options
-        self.options = ['New Game', 'Load Game', 'Quit']
+        # Menu options with submenu for level selection
+        self.main_menu = ['New Game', 'Load Game', 'Quit']
+        self.level_menu = ['UFO Level', 'Abduction Level', 'Back']
+        
+        self.current_menu = self.main_menu
         self.selected_option = 0
+        self.in_level_select = False
         
         # Create text surfaces for options
+        self.update_menu_surfaces()
+        
+        # Psychedelic effect parameters
+        self.time = 0
+        self.surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+    
+    def update_menu_surfaces(self):
         self.option_surfaces = []
         self.option_rects = []
-        for i, option in enumerate(self.options):
+        for i, option in enumerate(self.current_menu):
             text = self.font.render(option, True, WHITE)
             rect = text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + i * 80))
             self.option_surfaces.append(text)
             self.option_rects.append(rect)
         
-        # Psychedelic effect parameters
-        self.time = 0
-        self.surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-        
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    self.selected_option = (self.selected_option - 1) % len(self.options)
+                    self.selected_option = (self.selected_option - 1) % len(self.current_menu)
                 elif event.key == pygame.K_DOWN:
-                    self.selected_option = (self.selected_option + 1) % len(self.options)
+                    self.selected_option = (self.selected_option + 1) % len(self.current_menu)
                 elif event.key == pygame.K_RETURN:
                     self.handle_selection()
+                elif event.key == pygame.K_ESCAPE and self.in_level_select:
+                    self.return_to_main_menu()
+
+    def return_to_main_menu(self):
+        self.current_menu = self.main_menu
+        self.selected_option = 0
+        self.in_level_select = False
+        self.update_menu_surfaces()
 
     def handle_selection(self):
-        if self.options[self.selected_option] == 'New Game':
-            self.game.change_state('game')
-        elif self.options[self.selected_option] == 'Load Game':
-            self.game.states['slot_select'] = SlotSelectState(self.game, mode='load')
-            self.game.change_state('slot_select')
-        elif self.options[self.selected_option] == 'Quit':
-            self.game.running = False
+        if not self.in_level_select:
+            if self.current_menu[self.selected_option] == 'New Game':
+                self.current_menu = self.level_menu
+                self.selected_option = 0
+                self.in_level_select = True
+                self.update_menu_surfaces()
+            elif self.current_menu[self.selected_option] == 'Load Game':
+                self.game.states['slot_select'] = SlotSelectState(self.game, mode='load')
+                self.game.change_state('slot_select')
+            elif self.current_menu[self.selected_option] == 'Quit':
+                self.game.running = False
+        else:
+            # Handle level selection
+            if self.current_menu[self.selected_option] == 'UFO Level':
+                self.game.change_state('game')
+                self.game.states['game'].change_level('ufo')
+            elif self.current_menu[self.selected_option] == 'Abduction Level':
+                self.game.change_state('game')
+                self.game.states['game'].change_level('abduction')
+            elif self.current_menu[self.selected_option] == 'Back':
+                self.return_to_main_menu()
 
     def update(self, dt):
         self.time += dt
@@ -78,5 +107,5 @@ class MenuState(State):
         # Draw menu options
         for i, (text, rect) in enumerate(zip(self.option_surfaces, self.option_rects)):
             color = (255, 255, 0) if i == self.selected_option else WHITE
-            text = self.font.render(self.options[i], True, color)
+            text = self.font.render(self.current_menu[i], True, color)
             screen.blit(text, rect) 
