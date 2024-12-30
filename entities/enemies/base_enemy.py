@@ -1,6 +1,7 @@
 from entities.base_entity import Entity
 from abc import ABC, abstractmethod
 import pygame
+from systems.capture_system import CaptureState
 from utils.config import *
 import random
 
@@ -30,6 +31,13 @@ class BaseEnemy(Entity, ABC):
         self.wander_radius = 5  # tiles
         self.detection_range = TILE_SIZE * 5
         self.attack_range = TILE_SIZE * 1.5
+        
+        # Enhance capture-related attributes
+        self.capture_state = CaptureState.NONE
+        self.unconscious_timer = 0
+        self.carrier = None
+        self.awareness_level = 0
+        self.struggle_chance = 0.1  # 10% chance to break free per second
         
     def set_patrol_points(self, points):
         """Set patrol route for the enemy"""
@@ -123,3 +131,55 @@ class BaseEnemy(Entity, ABC):
                     self.moving = False
                 return True
         return False 
+
+    def is_aware_of(self, entity):
+        """Check if enemy is aware of the given entity"""
+        if self.capture_state in [CaptureState.UNCONSCIOUS, CaptureState.BEING_CARRIED]:
+            return False
+            
+        if self.awareness_level > 0:
+            distance = (entity.position - self.position).length()
+            return distance < self.detection_range
+        return False
+        
+    def update(self, dt):
+        # Handle captured state first
+        if self.capture_state == CaptureState.UNCONSCIOUS:
+            self.unconscious_timer -= dt
+            if self.unconscious_timer <= 0:
+                self.capture_state = CaptureState.NONE
+                return
+        elif self.capture_state == CaptureState.BEING_CARRIED:
+            # Update position to follow carrier
+            if self.carrier:
+                self.position = self.carrier.position
+                # Chance to break free
+                if random.random() < self.struggle_chance * dt:
+                    self.capture_state = CaptureState.NONE
+                    self.carrier.carrying_target = None
+                    self.carrier = None
+            return
+            
+        # Only proceed with normal updates if not captured
+        if self.capture_state == CaptureState.NONE:
+            super().update(dt)
+            
+    def render_with_offset(self, surface, camera_x, camera_y):
+        if not self.active:
+            return
+            
+        screen_x = (self.position.x - camera_x) * self.game_state.zoom_level
+        screen_y = (self.position.y - camera_y) * self.game_state.zoom_level
+        
+        # Draw capture glow effect
+        if self.capture_state == CaptureState.BEING_CARRIED:
+            glow_radius = int(30 * self.game_state.zoom_level)
+            glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surface, (255, 255, 0, 100), 
+                             (glow_radius, glow_radius), glow_radius)
+            surface.blit(glow_surface, 
+                        (screen_x - glow_radius, 
+                         screen_y - glow_radius))
+        
+        # Continue with normal rendering
+        super().render_with_offset(surface, camera_x, camera_y) 

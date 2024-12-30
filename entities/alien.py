@@ -1,4 +1,6 @@
 import pygame
+
+from systems.capture_system import CaptureState
 from .base_entity import Entity
 from utils.config import *
 from utils.pathfinding import find_path
@@ -24,6 +26,11 @@ class Alien(Entity):
         self.health = self.max_health
         self.max_morale = 100
         self.morale = self.max_morale
+        
+        # Add capture-related attributes
+        self.capture_range = TILE_SIZE * 2  # 2 tiles range for capture
+        self.capture_strength = 50  # Base capture strength
+        self.carrying_target = None
         
     def select(self):
         self.selected = True
@@ -155,3 +162,33 @@ class Alien(Entity):
     
     def change_morale(self, amount):
         self.morale = max(0, min(self.max_morale, self.morale + amount)) 
+    
+    def can_capture(self, target):
+        """Check if target is within capture range"""
+        if not hasattr(target, 'capture_state'):
+            return False
+            
+        distance = (target.position - self.position).length()
+        return distance <= self.capture_range
+        
+    def attempt_capture(self, target):
+        """Attempt to capture a target"""
+        if not self.can_capture(target):
+            return False
+            
+        # First knock them unconscious
+        if target.capture_state == CaptureState.NONE:
+            if self.game_state.capture_system.attempt_knockout(self, target):
+                return True
+        # Then start carrying if they're unconscious
+        elif target.capture_state == CaptureState.UNCONSCIOUS:
+            return self.game_state.capture_system.start_carrying(self, target)
+        return False
+        
+    def release_target(self):
+        """Release currently carried target"""
+        if self.carrying_target:
+            self.carrying_target.capture_state = CaptureState.NONE
+            self.carrying_target.carrier = None
+            self.carrying_target = None
+            self.speed /= 0.6  # Restore normal speed 

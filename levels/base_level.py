@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import pygame
 from core.tilemap import TileMap
+from entities.alien import Alien
 from entities.manager import EntityManager
 from utils.config import BLACK, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH
 
@@ -31,14 +32,27 @@ class BaseLevel(ABC):
         # Render tilemap
         self.tilemap.render(screen, camera_x, camera_y)
         
-        # Render entities and items
+        # Render items
         for item in self.entity_manager.items:
             if item.active:
                 item.render_with_offset(screen, camera_x, camera_y)
         
+        # Render entities with capture indicators
         for entity in self.entity_manager.entities:
-            if entity.active:
-                entity.render_with_offset(screen, camera_x, camera_y)
+            if not entity.active:
+                continue
+            
+            entity.render_with_offset(screen, camera_x, camera_y)
+            
+            # Draw capture range indicator for selected aliens
+            if isinstance(entity, Alien) and entity.selected:
+                screen_x = (entity.position.x - camera_x) * self.game_state.zoom_level
+                screen_y = (entity.position.y - camera_y) * self.game_state.zoom_level
+                capture_radius = entity.capture_range * self.game_state.zoom_level
+                
+                pygame.draw.circle(screen, (255, 255, 0, 64),
+                                 (int(screen_x), int(screen_y)),
+                                 int(capture_radius), 1)
         
     def handle_click(self, tile_x, tile_y):
         """Handle mouse click events"""

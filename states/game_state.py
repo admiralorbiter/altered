@@ -11,9 +11,11 @@ from utils.save_load import save_game, load_game
 import random
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
-from systems.ui import HUD
+from systems.ui import HUD, CaptureUI
 from systems.ai_system import AISystem
 from utils.pathfinding import PathReservationSystem
+from systems.capture_system import CaptureSystem
+from entities.enemies.base_enemy import BaseEnemy
 
 class GameState(State):
     def __init__(self, game):
@@ -40,6 +42,10 @@ class GameState(State):
         self.ai_system = AISystem()
         self.path_reservation_system = PathReservationSystem()
         self.current_time = 0  # Add time tracking
+        
+        # Add capture system
+        self.capture_system = CaptureSystem(self)
+        self.capture_ui = CaptureUI(self)
         
     def change_level(self, level_name):
         if self.current_level:
@@ -91,8 +97,19 @@ class GameState(State):
                     self.camera_x += (mouse_x / old_zoom) * (1 - zoom_factor)
                     self.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
 
+            # If in capture mode, try to mark targets
+            if self.capture_system.capture_mode:
+                for entity in self.current_level.entity_manager.entities:
+                    if isinstance(entity, BaseEnemy):
+                        entity_rect = entity.get_rect()
+                        if entity_rect.collidepoint(world_x, world_y):
+                            self.capture_system.mark_target(entity)
+                            return
+
     def update(self, dt):
         if self.current_level:
+            # Update capture system first
+            self.capture_system.update(dt)
             self.current_level.update(dt)
             
             # Camera follows selected alien

@@ -1,4 +1,6 @@
 import pygame
+
+from systems.capture_system import CaptureState
 from .base_enemy import BaseEnemy
 from utils.config import *
 from utils.pathfinding import find_path
@@ -23,119 +25,129 @@ class Human(BaseEnemy):
         # Visual properties
         self.color = (200, 150, 150, 200)
         
+        # Add human-specific capture attributes
+        self.struggle_chance = 0.15  # Humans have higher chance to break free
+        self.unconscious_duration = 8.0  # Humans stay unconscious for 8 seconds
+        
     def attack(self, target):
         if self.attack_timer <= 0:
             target.take_damage(self.attack_power)
             self.attack_timer = self.attack_cooldown
             
     def update(self, dt):
-        if not self.active:
-            return
-            
-        # Update attack cooldown
-        self.attack_timer = max(0, self.attack_timer - dt)
-        
-        # Check for and handle overlapping entities
-        if self.handle_collision_separation(self.game_state):
-            return  # Skip rest of update if we had to separate
-        
-        # Only move if we're outside minimum distance
-        if self.target and self.state == 'chase':
-            distance = (self.target.position - self.position).length()
-            
-            # Find other enemies targeting the same target
-            other_chasers = [e for e in self.game_state.current_level.enemies 
-                            if e != self and e.active and e.target == self.target]
-            
-            # Adjust minimum distance based on number of chasers
-            adjusted_min_distance = self.min_distance * (1 + len(other_chasers) * 0.3)
-            
-            if distance < adjusted_min_distance:
+        # Check capture state first
+        if self.capture_state != CaptureState.NONE:
+            # When captured, only update position if being carried
+            if self.capture_state == CaptureState.BEING_CARRIED and self.carrier:
+                self.position = self.carrier.position.copy()
+                self.target = None
+                self.path = None
                 self.moving = False
-                self.target_position = None
-                return
-            elif not self.moving and not self.target_position:
-                current_tile = (int(self.position.x // TILE_SIZE),
-                              int(self.position.y // TILE_SIZE))
-                
-                # Calculate offset position based on other chasers
-                angle = (id(self) % 4) * (3.14159 / 2)  # Distribute around target
-                offset_x = math.cos(angle) * TILE_SIZE
-                offset_y = math.sin(angle) * TILE_SIZE
-                
-                target_pos = pygame.math.Vector2(self.target.position)
-                target_pos.x += offset_x
-                target_pos.y += offset_y
-                
-                target_tile = (int(target_pos.x // TILE_SIZE),
-                              int(target_pos.y // TILE_SIZE))
-                
-                self.path = find_path(current_tile, target_tile,
-                                    self.game_state.current_level.tilemap,
-                                    self.game_state, self)
-        
-        # Basic movement update
-        if self.target_position and self.moving:
-            direction = self.target_position - self.position
-            distance = direction.length()
-            
-            if distance < 2:
-                self.position = self.target_position
+            elif self.capture_state == CaptureState.UNCONSCIOUS:
+                self.target = None
+                self.path = None
                 self.moving = False
-            else:
-                normalized_dir = direction.normalize()
-                movement = normalized_dir * self.speed * dt
-                if movement.length() > distance:
-                    self.position = self.target_position
-                else:
-                    self.position += movement
+                if hasattr(self, 'unconscious_timer'):
+                    self.unconscious_timer -= dt
+                    if self.unconscious_timer <= 0:
+                        self.capture_state = CaptureState.NONE
+            return  # Don't do any other updates when captured
+            
+        # Only proceed with normal updates if not captured
+        super().update(dt)
 
     def render_with_offset(self, surface, camera_x, camera_y):
         if not self.active:
             return
             
-        # Get zoom level from game state
         zoom_level = self.game_state.zoom_level
-        
-        # Draw detection range circle
-        screen_x = (self.position.x - camera_x) * zoom_level
-        screen_y = (self.position.y - camera_y) * zoom_level
-        range_radius = self.detection_range * zoom_level
-        
-        # Draw semi-transparent detection range
-        range_surface = pygame.Surface((range_radius * 2, range_radius * 2), pygame.SRCALPHA)
-        if self.state == 'chase':
-            pygame.draw.circle(range_surface, (255, 0, 0, 30), 
-                             (range_radius, range_radius), range_radius)
-        else:
-            pygame.draw.circle(range_surface, (100, 100, 100, 30), 
-                             (range_radius, range_radius), range_radius)
-        surface.blit(range_surface, 
-                    (screen_x - range_radius, screen_y - range_radius))
-        
-        # Calculate screen position with zoom
         screen_x = (self.position.x - camera_x) * zoom_level
         screen_y = (self.position.y - camera_y) * zoom_level
         
-        # Scale size based on zoom
+        # Draw UFO capture effect if being carried
+        if self.capture_state == CaptureState.BEING_CARRIED:
+            # Create UFO beam effect
+            beam_height = int(50 * zoom_level)
+            beam_width = int(40 * zoom_level)
+            beam_surface = pygame.Surface((beam_width, beam_height), pygame.SRCALPHA)
+            
+            # Pulsing effect
+            pulse = (math.sin(pygame.time.get_ticks() * 0.005) + 1) * 0.5
+            alpha = int(50 + (30 * pulse))
+            
+            # Draw beam cone
+            points = [
+                (beam_width//2, 0),  # Top point
+                (0, beam_height),    # Bottom left
+                (beam_width, beam_height)  # Bottom right
+            ]
+            pygame.draw.polygon(beam_surface, (0, 150, 255, alpha), points)
+            
+            # Draw UFO circle
+            ufo_radius = int(25 * zoom_level)
+            ufo_surface = pygame.Surface((ufo_radius * 2, ufo_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(ufo_surface, (0, 200, 255, alpha + 50), 
+                             (ufo_radius, ufo_radius), ufo_radius)
+            
+            # Blit beam and UFO
+            surface.blit(beam_surface, 
+                        (screen_x - beam_width//2, 
+                         screen_y - beam_height))
+            surface.blit(ufo_surface,
+                        (screen_x - ufo_radius,
+                         screen_y - beam_height - ufo_radius))
+        
+        # Only draw detection range if not captured
+        if self.capture_state == CaptureState.NONE:
+            range_radius = self.detection_range * zoom_level
+            range_surface = pygame.Surface((range_radius * 2, range_radius * 2), pygame.SRCALPHA)
+            if self.state == 'chase':
+                pygame.draw.circle(range_surface, (255, 0, 0, 30), 
+                                 (range_radius, range_radius), range_radius)
+            else:
+                pygame.draw.circle(range_surface, (100, 100, 100, 30), 
+                                 (range_radius, range_radius), range_radius)
+            surface.blit(range_surface, 
+                        (screen_x - range_radius, screen_y - range_radius))
+        
+        # Draw capture effect first (if captured)
+        if self.capture_state == CaptureState.BEING_CARRIED:
+            # Create hover effect
+            hover_size = int(40 * zoom_level)
+            hover_surface = pygame.Surface((hover_size, hover_size), pygame.SRCALPHA)
+            
+            # Pulsing effect based on time
+            pulse = (math.sin(pygame.time.get_ticks() * 0.005) + 1) * 0.5  # 0 to 1
+            alpha = int(100 + (50 * pulse))  # Pulsing alpha between 100-150
+            
+            pygame.draw.circle(hover_surface, (255, 215, 0, alpha), 
+                             (hover_size//2, hover_size//2), hover_size//2)
+            surface.blit(hover_surface, 
+                        (screen_x - hover_size//2, screen_y - hover_size//2))
+        
+        # Draw the human character (existing code)
         scaled_size = pygame.Vector2(self.size.x * zoom_level, self.size.y * zoom_level)
-        
-        # Create a surface with alpha for the human
         human_surface = pygame.Surface((scaled_size.x, scaled_size.y), pygame.SRCALPHA)
+        
+        # Modify color if captured
+        render_color = self.color
+        if self.capture_state != CaptureState.NONE:
+            # Make the human slightly transparent when captured
+            render_color = (*self.color[:3], 150)
         
         # Draw body (rectangle)
         body_rect = (scaled_size.x * 0.3, scaled_size.y * 0.3, 
                     scaled_size.x * 0.4, scaled_size.y * 0.5)
-        pygame.draw.rect(human_surface, self.color, body_rect)
+        pygame.draw.rect(human_surface, render_color, body_rect)
         
         # Draw head (circle)
         head_size = scaled_size.x * 0.3
-        pygame.draw.circle(human_surface, self.color,
+        pygame.draw.circle(human_surface, render_color,
                          (scaled_size.x/2, scaled_size.y * 0.25),
                          head_size/2)
         
         # Draw arms (lines)
-        arm_color = tuple(max(0, min(255, c - 20)) for c in self.color[:3]) + (self.color[3],)
+        arm_color = tuple(max(0, min(255, c - 20)) for c in render_color[:3]) + (render_color[3],)
         line_width = max(1, int(3 * zoom_level))
         # Left arm
         pygame.draw.line(human_surface, arm_color,
@@ -173,6 +185,13 @@ class Human(BaseEnemy):
         surface.blit(human_surface,
                     (screen_x - scaled_size.x/2,
                      screen_y - scaled_size.y/2)) 
+        
+        # Add human-specific capture state visuals
+        if self.capture_state == CaptureState.UNCONSCIOUS:
+            font = pygame.font.Font(None, int(20 * zoom_level))
+            text = font.render("zZZ", True, (255, 255, 255))
+            surface.blit(text, (screen_x - text.get_width()/2, 
+                               screen_y - 30 * zoom_level))
 
     def update_ai_state(self, dt, game_state):
         super().update_ai_state(dt, game_state)
