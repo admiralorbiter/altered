@@ -51,6 +51,17 @@ class Cat(Entity):
         num_traits = random.randint(1, 2)  # Each cat gets 1-2 traits
         return random.sample(possible_traits, num_traits)
     
+    def take_damage(self, amount):
+        """Handle taking damage"""
+        self.health = max(0, self.health - amount)
+        # Cats lose morale when damaged
+        self.morale = max(0, self.morale - amount * 0.5)
+        
+        # Check if damage killed the cat
+        if self.health <= 0:
+            self.is_dead = True
+            self.color = (100, 100, 100, 200)  # Gray out dead cats
+    
     def find_nearest_food(self):
         """Find the nearest food item"""
         nearest_food = None

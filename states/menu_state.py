@@ -13,7 +13,7 @@ class MenuState(State):
         
         # Menu options with submenu for level selection
         self.main_menu = ['New Game', 'Load Game', 'Quit']
-        self.level_menu = ['UFO Level', 'Abduction Level', 'Back']
+        self.level_menu = ['UFO Level', 'Abduction Level', 'Test Level', 'Back']
         
         self.current_menu = self.main_menu
         self.selected_option = 0
@@ -73,6 +73,9 @@ class MenuState(State):
             elif self.current_menu[self.selected_option] == 'Abduction Level':
                 self.game.change_state('game')
                 self.game.states['game'].change_level('abduction')
+            elif self.current_menu[self.selected_option] == 'Test Level':
+                self.game.change_state('game')
+                self.game.states['game'].change_level('test')
             elif self.current_menu[self.selected_option] == 'Back':
                 self.return_to_main_menu()
 

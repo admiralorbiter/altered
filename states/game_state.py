@@ -1,6 +1,7 @@
 import pygame
 
 from entities.alien import Alien
+from levels.test_level import TestLevel
 from .base_state import State
 from utils.config import *
 from entities.manager import EntityManager
@@ -28,7 +29,8 @@ class GameState(State):
         # Level management
         self.levels = {
             'ufo': UfoLevel(self),
-            'abduction': AbductionLevel(self)
+            'abduction': AbductionLevel(self),
+            'test': TestLevel(self)
         }
         self.current_level = None
         # Initialize the entity manager
