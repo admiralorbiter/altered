@@ -19,6 +19,12 @@ class Alien(Entity):
         self.path = None
         self.current_waypoint = 0
         
+        # Add health and morale attributes
+        self.max_health = 100
+        self.health = self.max_health
+        self.max_morale = 100
+        self.morale = self.max_morale
+        
     def select(self):
         self.selected = True
         
@@ -135,3 +141,12 @@ class Alien(Entity):
             pygame.draw.line(surface, (255, 255, 0),
                            (screen_x, screen_y),
                            (target_screen_x, target_screen_y), 1) 
+    
+    def take_damage(self, amount):
+        self.health = max(0, self.health - amount)
+    
+    def heal(self, amount):
+        self.health = min(self.max_health, self.health + amount)
+    
+    def change_morale(self, amount):
+        self.morale = max(0, min(self.max_morale, self.morale + amount)) 

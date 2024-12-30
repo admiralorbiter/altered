@@ -6,11 +6,15 @@ class Food(Item):
         super().__init__(x, y)
         self.name = "Apple"
         self.description = "A fresh, red apple"
-        self.nutrition_value = 25
+        self.nutrition_value = 100
         
     def use(self, user):
         if hasattr(user, 'health'):
-            user.health = min(user.health + self.nutrition_value, user.max_health)
+            if hasattr(user, 'hunger'):
+                user.hunger = user.max_hunger
+                user.health = user.max_health
+            else:
+                user.health = min(user.health + self.nutrition_value, user.max_health)
             return True  # Item was consumed
         return False
         

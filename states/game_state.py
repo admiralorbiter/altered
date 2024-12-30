@@ -10,6 +10,7 @@ from utils.save_load import save_game, load_game
 import random
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
+from systems.ui import HUD
 
 class GameState(State):
     def __init__(self, game):
@@ -23,6 +24,7 @@ class GameState(State):
         self.current_level = None
         # Initialize the entity manager
         self.entity_manager = EntityManager()
+        self.hud = HUD(self)
         
     def change_level(self, level_name):
         if self.current_level:
@@ -36,7 +38,11 @@ class GameState(State):
         self.change_level('ufo')
 
     def handle_events(self, events):
+        # Let HUD handle events first
         for event in events:
+            if self.hud.handle_event(event):
+                continue
+            
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.game.change_state('pause')
@@ -70,10 +76,13 @@ class GameState(State):
             self.camera_x = max(0, min(self.camera_x, MAP_WIDTH * TILE_SIZE - WINDOW_WIDTH))
             self.camera_y = max(0, min(self.camera_y, MAP_HEIGHT * TILE_SIZE - WINDOW_HEIGHT))
 
+        self.hud.update(dt)
+
     def render(self, screen):
         screen.fill(BLACK)
         if self.current_level:
             self.current_level.render(screen, self.camera_x, self.camera_y)
+        self.hud.draw(screen)
 
     def save_game_state(self, slot=None):
         filepath = save_game(self, slot)
