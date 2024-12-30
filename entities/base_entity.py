@@ -44,3 +44,11 @@ class Entity:
         entity.color = data["color"]
         entity.active = data["active"]
         return entity 
+    
+    def render_with_offset(self, surface, camera_x, camera_y):
+        """Render the entity with camera offset"""
+        screen_x = self.position.x - camera_x - self.size.x/2
+        screen_y = self.position.y - camera_y - self.size.y/2
+        pygame.draw.rect(surface, self.color, 
+                        (screen_x, screen_y,
+                         self.size.x, self.size.y)) 

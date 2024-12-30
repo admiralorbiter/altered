@@ -4,6 +4,11 @@ WINDOW_HEIGHT = 720
 FPS = 60
 GAME_TITLE = "Altered"
 
+# Tile settings
+TILE_SIZE = 32
+MAP_WIDTH = 100
+MAP_HEIGHT = 100
+
 # Colors (RGB)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
