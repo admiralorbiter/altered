@@ -13,6 +13,7 @@ from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
 from systems.ui import HUD
 from systems.ai_system import AISystem
+from utils.pathfinding import PathReservationSystem
 
 class GameState(State):
     def __init__(self, game):
@@ -37,6 +38,8 @@ class GameState(State):
         self.entity_manager = EntityManager(self)
         self.hud = HUD(self)
         self.ai_system = AISystem()
+        self.path_reservation_system = PathReservationSystem()
+        self.current_time = 0  # Add time tracking
         
     def change_level(self, level_name):
         if self.current_level:

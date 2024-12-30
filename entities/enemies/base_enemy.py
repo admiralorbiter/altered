@@ -2,10 +2,16 @@ from entities.base_entity import Entity
 from abc import ABC, abstractmethod
 import pygame
 from utils.config import *
+import random
+
+from utils.pathfinding import find_path
 
 class BaseEnemy(Entity, ABC):
     def __init__(self, x, y):
         super().__init__(x, y)
+        
+        # Add minimum distance to maintain from target
+        self.min_distance = TILE_SIZE * 0.9  # Slightly less than one tile
         
         # AI properties
         self.state = 'idle'
@@ -82,3 +88,38 @@ class BaseEnemy(Entity, ABC):
         else:
             self.state = 'patrol'
             self.target = None 
+
+    def handle_collision_separation(self, game_state):
+        """Handle separation when entities overlap"""
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        
+        # Check for other entities in the same tile or adjacent tiles
+        for entity in game_state.current_level.entity_manager.entities:
+            if entity == self or not entity.active:
+                continue
+            
+            # Calculate actual distance between entities
+            distance = (entity.position - self.position).length()
+            if distance < TILE_SIZE * 0.9:  # If too close
+                # Calculate separation vector
+                diff = self.position - entity.position
+                if diff.length() < 1:  # If exactly overlapping
+                    diff = pygame.math.Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
+                
+                # Move away based on relative positions
+                normalized_diff = diff.normalize()
+                separation_distance = TILE_SIZE * 0.5
+                
+                # The entity with higher x coordinate moves right, lower moves left
+                if self.position.x > entity.position.x:
+                    self.position.x += separation_distance
+                else:
+                    self.position.x -= separation_distance
+                    
+                # Recalculate path with delay to prevent immediate collision
+                if self.target and self.state == 'chase':
+                    self.path_update_timer = 0.2  # Small delay before recalculating
+                    self.moving = False
+                return True
+        return False 

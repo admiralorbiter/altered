@@ -3,6 +3,7 @@ from .base_enemy import BaseEnemy
 from utils.config import *
 from utils.pathfinding import find_path
 import random
+import math
 
 class Human(BaseEnemy):
     def __init__(self, x, y):
@@ -33,6 +34,45 @@ class Human(BaseEnemy):
             
         # Update attack cooldown
         self.attack_timer = max(0, self.attack_timer - dt)
+        
+        # Check for and handle overlapping entities
+        if self.handle_collision_separation(self.game_state):
+            return  # Skip rest of update if we had to separate
+        
+        # Only move if we're outside minimum distance
+        if self.target and self.state == 'chase':
+            distance = (self.target.position - self.position).length()
+            
+            # Find other enemies targeting the same target
+            other_chasers = [e for e in self.game_state.current_level.enemies 
+                            if e != self and e.active and e.target == self.target]
+            
+            # Adjust minimum distance based on number of chasers
+            adjusted_min_distance = self.min_distance * (1 + len(other_chasers) * 0.3)
+            
+            if distance < adjusted_min_distance:
+                self.moving = False
+                self.target_position = None
+                return
+            elif not self.moving and not self.target_position:
+                current_tile = (int(self.position.x // TILE_SIZE),
+                              int(self.position.y // TILE_SIZE))
+                
+                # Calculate offset position based on other chasers
+                angle = (id(self) % 4) * (3.14159 / 2)  # Distribute around target
+                offset_x = math.cos(angle) * TILE_SIZE
+                offset_y = math.sin(angle) * TILE_SIZE
+                
+                target_pos = pygame.math.Vector2(self.target.position)
+                target_pos.x += offset_x
+                target_pos.y += offset_y
+                
+                target_tile = (int(target_pos.x // TILE_SIZE),
+                              int(target_pos.y // TILE_SIZE))
+                
+                self.path = find_path(current_tile, target_tile,
+                                    self.game_state.current_level.tilemap,
+                                    self.game_state, self)
         
         # Basic movement update
         if self.target_position and self.moving:
@@ -133,3 +173,33 @@ class Human(BaseEnemy):
         surface.blit(human_surface,
                     (screen_x - scaled_size.x/2,
                      screen_y - scaled_size.y/2)) 
+
+    def update_ai_state(self, dt, game_state):
+        super().update_ai_state(dt, game_state)
+        
+        if self.state == 'chase' and self.target:
+            current_tile = (int(self.position.x // TILE_SIZE),
+                           int(self.position.y // TILE_SIZE))
+            target_tile = (int(self.target.position.x // TILE_SIZE),
+                          int(self.target.position.y // TILE_SIZE))
+            
+            # Update path periodically
+            self.path_update_timer -= dt
+            if self.path_update_timer <= 0:
+                self.path = find_path(current_tile, target_tile,
+                                    game_state.current_level.tilemap,
+                                    game_state, self)
+                self.path_update_timer = 0.5  # Update path every 0.5 seconds
+        
+    def set_target(self, tile_x, tile_y):
+        if not self.selected:
+            return
+        
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        target_tile = (tile_x, tile_y)
+        
+        # Find path using A* with entity collision checking
+        self.path = find_path(current_tile, target_tile, 
+                             self.game_state.current_level.tilemap,
+                             self.game_state, self) 

@@ -113,11 +113,12 @@ class Cat(Entity):
             if self.target_food:
                 self.seeking_food = True
                 current_tile = (int(self.position.x // TILE_SIZE), 
-                              int(self.position.y // TILE_SIZE))
+                               int(self.position.y // TILE_SIZE))
                 target_tile = (int(self.target_food.position.x // TILE_SIZE),
-                             int(self.target_food.position.y // TILE_SIZE))
+                              int(self.target_food.position.y // TILE_SIZE))
                 self.path = find_path(current_tile, target_tile, 
-                                    self.game_state.current_level.tilemap)
+                                    self.game_state.current_level.tilemap,
+                                    self.game_state, self)
                 if self.path:
                     self.current_waypoint = 1 if len(self.path) > 1 else 0
                     next_tile = self.path[self.current_waypoint]

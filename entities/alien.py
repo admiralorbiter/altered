@@ -39,8 +39,10 @@ class Alien(Entity):
                        int(self.position.y // TILE_SIZE))
         target_tile = (tile_x, tile_y)
         
-        # Find path using A*
-        self.path = find_path(current_tile, target_tile, self.game_state.current_level.tilemap)
+        # Find path using A* with entity collision checking
+        self.path = find_path(current_tile, target_tile, 
+                             self.game_state.current_level.tilemap,
+                             self.game_state, self)
         
         if self.path:
             # Set next waypoint
