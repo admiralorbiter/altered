@@ -4,8 +4,9 @@ from utils.config import *
 
 class AISystem:
     def __init__(self):
-        self.update_interval = 0.5  # Update AI every 0.5 seconds
+        self.update_interval = 0.5
         self.update_timer = 0
+        self.wander_chance = 0.1  # 10% chance to start wandering when idle
         
     def update(self, dt, game_state):
         self.update_timer += dt
@@ -13,6 +14,29 @@ class AISystem:
             self.update_timer = 0
             self.update_enemy_behaviors(dt, game_state)
             
+    def find_nearest_target(self, enemy, game_state):
+        """Find nearest valid target (alien or cat)"""
+        min_distance = float('inf')
+        nearest_target = None
+        
+        # Check aliens
+        for alien in game_state.current_level.aliens:
+            if alien.active:
+                distance = (alien.position - enemy.position).length()
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_target = alien
+                    
+        # Check cats
+        for cat in game_state.current_level.cats:
+            if cat.active and not cat.is_dead:
+                distance = (cat.position - enemy.position).length()
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_target = cat
+                    
+        return nearest_target, min_distance
+        
     def update_enemy_behaviors(self, dt, game_state):
         """Update all enemy AI behaviors"""
         for enemy in game_state.current_level.enemies:

@@ -7,68 +7,75 @@ class BaseEnemy(Entity, ABC):
     def __init__(self, x, y):
         super().__init__(x, y)
         
-        # Basic enemy stats
-        self.max_health = 100
-        self.health = self.max_health
-        self.attack_power = 10
-        self.speed = 200
-        self.detection_range = TILE_SIZE * 5  # 5 tiles detection range
-        self.attack_range = TILE_SIZE * 1.5   # 1.5 tiles attack range
-        
-        # AI state
-        self.state = 'idle'  # idle, patrol, chase, attack
+        # AI properties
+        self.state = 'idle'
         self.target = None
-        self.patrol_points = []
-        self.current_patrol_index = 0
         self.path = None
         self.current_waypoint = 0
-        
-        # Movement
         self.moving = False
         self.target_position = None
+        self.path_update_timer = 0
         
-        # Size and scale properties
-        self.base_size = pygame.Vector2(TILE_SIZE, TILE_SIZE)
-        self.size = self.base_size.copy()
+        # Patrol properties
+        self.patrol_points = []
+        self.current_patrol_index = 0
         
-    def take_damage(self, amount):
-        self.health = max(0, self.health - amount)
-        if self.health <= 0:
-            self.die()
-            
-    def die(self):
-        self.active = False
+        # Configurable properties
+        self.wander_radius = 5  # tiles
+        self.detection_range = TILE_SIZE * 5
+        self.attack_range = TILE_SIZE * 1.5
         
     def set_patrol_points(self, points):
-        """Set patrol points for the enemy"""
+        """Set patrol route for the enemy"""
         self.patrol_points = points
+        self.current_patrol_index = 0
         
-    @abstractmethod
-    def attack(self, target):
-        """Implement specific attack behavior"""
-        pass
+    def set_target_position(self, target_pos):
+        """Set new target position and start moving"""
+        self.target_position = target_pos
+        self.moving = True
+        
+    def set_path(self, path):
+        """Set new path and update waypoint"""
+        self.path = path
+        if path and len(path) > 1:
+            self.current_waypoint = 1
+            next_tile = path[self.current_waypoint]
+            self.set_target_position(pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )) 
         
     def update_ai_state(self, dt, game_state):
         """Update AI state based on conditions"""
-        # Find nearest alien
-        nearest_alien = None
+        # Find nearest target (alien or cat)
+        nearest_target = None
         min_distance = float('inf')
         
+        # Check aliens
         for alien in game_state.current_level.aliens:
             if alien.active:
                 distance = (alien.position - self.position).length()
                 if distance < min_distance:
                     min_distance = distance
-                    nearest_alien = alien
+                    nearest_target = alien
                     
-        # Update state based on distance to nearest alien
-        if nearest_alien:
+        # Check cats
+        for cat in game_state.current_level.cats:
+            if cat.active and not cat.is_dead:
+                distance = (cat.position - self.position).length()
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_target = cat
+        
+        # Update state based on distance to nearest target
+        if nearest_target:
             if min_distance <= self.attack_range:
                 self.state = 'attack'
-                self.target = nearest_alien
+                self.target = nearest_target
             elif min_distance <= self.detection_range:
                 self.state = 'chase'
-                self.target = nearest_alien
+                self.target = nearest_target
             else:
                 self.state = 'patrol'
                 self.target = None

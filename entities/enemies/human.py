@@ -16,14 +16,13 @@ class Human(BaseEnemy):
         self.health = self.max_health
         self.attack_power = 15
         self.speed = 250
-        self.attack_cooldown = 1.0  # 1 second between attacks
+        self.attack_cooldown = 1.0
         self.attack_timer = 0
         
         # Visual properties
-        self.color = (200, 150, 150, 200)  # Pinkish for human skin tone
+        self.color = (200, 150, 150, 200)
         
     def attack(self, target):
-        """Implement human attack behavior"""
         if self.attack_timer <= 0:
             target.take_damage(self.attack_power)
             self.attack_timer = self.attack_cooldown
@@ -35,110 +34,21 @@ class Human(BaseEnemy):
         # Update attack cooldown
         self.attack_timer = max(0, self.attack_timer - dt)
         
-        # Update AI state
-        self.update_ai_state(dt, self.game_state)
-        
-        # Handle different states
-        if self.state == 'idle':
-            # Randomly decide to start wandering
-            if random.random() < 0.01:  # 1% chance per frame to start wandering
-                self.start_wandering()
-                
-        elif self.state == 'patrol':
-            if not self.moving or not self.target_position:
-                self.start_wandering()
-                
-        elif self.state == 'chase':
-            if self.target:
-                # Update path to target every second
-                if not hasattr(self, 'path_update_timer'):
-                    self.path_update_timer = 0
-                self.path_update_timer -= dt
-                
-                if self.path_update_timer <= 0:
-                    self.path_update_timer = 1.0
-                    self.update_chase_path()
-        
-        # Movement logic
+        # Basic movement update
         if self.target_position and self.moving:
             direction = self.target_position - self.position
             distance = direction.length()
             
-            if distance < 2:  # Reached waypoint
-                self.handle_waypoint_reached()
+            if distance < 2:
+                self.position = self.target_position
+                self.moving = False
             else:
-                self.move_towards_target(direction, distance, dt)
-
-    def start_wandering(self):
-        """Start wandering to a random nearby position"""
-        current_tile = (int(self.position.x // TILE_SIZE), 
-                       int(self.position.y // TILE_SIZE))
-        
-        # Try to find a valid wandering target
-        for _ in range(10):  # Try 10 times
-            dx = random.randint(-5, 5)
-            dy = random.randint(-5, 5)
-            target_tile = (current_tile[0] + dx, current_tile[1] + dy)
-            
-            if self.game_state.current_level.tilemap.is_walkable(*target_tile):
-                self.path = find_path(current_tile, target_tile, 
-                                    self.game_state.current_level.tilemap)
-                if self.path:
-                    self.current_waypoint = 1 if len(self.path) > 1 else 0
-                    next_tile = self.path[self.current_waypoint]
-                    self.target_position = pygame.math.Vector2(
-                        (next_tile[0] + 0.5) * TILE_SIZE,
-                        (next_tile[1] + 0.5) * TILE_SIZE
-                    )
-                    self.moving = True
-                    break
-
-    def update_chase_path(self):
-        """Update path to chase target"""
-        if not self.target:
-            return
-        
-        current_tile = (int(self.position.x // TILE_SIZE), 
-                       int(self.position.y // TILE_SIZE))
-        target_tile = (int(self.target.position.x // TILE_SIZE),
-                      int(self.target.position.y // TILE_SIZE))
-        
-        self.path = find_path(current_tile, target_tile, 
-                             self.game_state.current_level.tilemap)
-        if self.path:
-            self.current_waypoint = 1 if len(self.path) > 1 else 0
-            next_tile = self.path[self.current_waypoint]
-            self.target_position = pygame.math.Vector2(
-                (next_tile[0] + 0.5) * TILE_SIZE,
-                (next_tile[1] + 0.5) * TILE_SIZE
-            )
-            self.moving = True
-
-    def handle_waypoint_reached(self):
-        """Handle reaching a waypoint in the path"""
-        self.position = self.target_position
-        
-        if self.path and self.current_waypoint < len(self.path) - 1:
-            self.current_waypoint += 1
-            next_tile = self.path[self.current_waypoint]
-            self.target_position = pygame.math.Vector2(
-                (next_tile[0] + 0.5) * TILE_SIZE,
-                (next_tile[1] + 0.5) * TILE_SIZE
-            )
-        else:
-            self.target_position = None
-            self.path = None
-            self.moving = False
-
-    def move_towards_target(self, direction, distance, dt):
-        """Move towards the current target"""
-        normalized_dir = direction.normalize()
-        movement = normalized_dir * self.speed * dt
-        
-        if movement.length() > distance:
-            self.position = self.target_position
-        else:
-            self.position += movement
+                normalized_dir = direction.normalize()
+                movement = normalized_dir * self.speed * dt
+                if movement.length() > distance:
+                    self.position = self.target_position
+                else:
+                    self.position += movement
 
     def render_with_offset(self, surface, camera_x, camera_y):
         if not self.active:
