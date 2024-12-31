@@ -200,38 +200,19 @@ class WireUI(UIElement):
     def __init__(self, x, y, width, height, game_state):
         super().__init__(x, y, width, height)
         self.game_state = game_state
-        self.ghost_position = None
-        self.ghost_valid = False
         self.selected_component = 'wire'
-        self.pending_wires = []
 
     def handle_event(self, event):
         if not self.game_state.wire_mode:
             return False
-
+            
+        # Only handle mouse motion for ghost wire preview
         if event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
-            # Convert screen coordinates to tile coordinates
-            tile_x = int((mouse_pos[0] / self.game_state.zoom_level + self.game_state.camera_x) // TILE_SIZE)
-            tile_y = int((mouse_pos[1] / self.game_state.zoom_level + self.game_state.camera_y) // TILE_SIZE)
-            self.ghost_position = (tile_x, tile_y)
-            self.ghost_valid = self.game_state.current_level.tilemap.is_walkable(tile_x, tile_y)
+            # Let wire system handle the ghost position
+            self.game_state.wire_system._update_ghost_position(mouse_pos)
             return True
-
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click
-            if self.ghost_position and self.ghost_valid:
-                tile_x, tile_y = self.ghost_position
-                
-                # Create and add the electrical component
-                from core.tiles import ElectricalComponent
-                component = ElectricalComponent(type='wire')
-                self.game_state.current_level.tilemap.electrical_components[(tile_x, tile_y)] = component
-                
-                # Add to pending wires for entity placement
-                self.pending_wires.append(self.ghost_position)
-                self.assign_wire_placement()
-                return True
-
+            
         return super().handle_event(event)
 
     def draw(self, surface):
@@ -239,8 +220,12 @@ class WireUI(UIElement):
         if not self.game_state.wire_mode:
             return
         
-        if self.ghost_position:
-            tile_x, tile_y = self.ghost_position
+        # Use wire system's ghost position and validity
+        ghost_position = self.game_state.wire_system.ghost_position
+        ghost_valid = self.game_state.wire_system.ghost_valid
+        
+        if ghost_position:
+            tile_x, tile_y = ghost_position
             
             # Calculate screen position
             screen_x = int((tile_x * TILE_SIZE - self.game_state.camera_x) * self.game_state.zoom_level)
@@ -248,7 +233,7 @@ class WireUI(UIElement):
             tile_size = int(TILE_SIZE * self.game_state.zoom_level)
             
             # Draw ghost wire with transparency
-            ghost_color = (255, 255, 0, 128) if self.ghost_valid else (255, 0, 0, 128)
+            ghost_color = (255, 255, 0, 128) if ghost_valid else (255, 0, 0, 128)
             ghost_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
             
             # Draw wire pattern with thicker lines
@@ -278,41 +263,6 @@ class WireUI(UIElement):
                            (0, 0, tile_size, tile_size), 2)
             
             surface.blit(ghost_surface, (screen_x, screen_y))
-
-    def assign_wire_placement(self):
-        """Find nearest cat or selected alien to place the wire"""
-        if not self.pending_wires:
-            return
-
-        wire_pos = self.pending_wires[0]
-        
-        # Try to find the nearest entity to place the wire
-        nearest_entity = None
-        min_distance = float('inf')
-        
-        # Check selected alien first
-        selected_alien = next((alien for alien in self.game_state.current_level.aliens 
-                             if alien.selected), None)
-        if selected_alien:
-            distance = ((selected_alien.position.x // TILE_SIZE - wire_pos[0]) ** 2 + 
-                       (selected_alien.position.y // TILE_SIZE - wire_pos[1]) ** 2) ** 0.5
-            if distance < min_distance:
-                nearest_entity = selected_alien
-                min_distance = distance
-
-        # Check cats
-        for cat in self.game_state.current_level.cats:
-            if not cat.is_dead and not cat.current_task:
-                distance = ((cat.position.x // TILE_SIZE - wire_pos[0]) ** 2 + 
-                          (cat.position.y // TILE_SIZE - wire_pos[1]) ** 2) ** 0.5
-                if distance < min_distance:
-                    nearest_entity = cat
-                    min_distance = distance
-
-        if nearest_entity:
-            # Assign the wire placement task
-            nearest_entity.set_wire_task(wire_pos, self.selected_component)
-            self.pending_wires.pop(0)
 
 class CaptureUI(UIElement):
     def __init__(self, game_state):

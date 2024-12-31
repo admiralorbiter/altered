@@ -16,6 +16,7 @@ from systems.ai_system import AISystem
 from utils.pathfinding import PathReservationSystem
 from systems.capture_system import CaptureSystem
 from entities.enemies.base_enemy import BaseEnemy
+from systems.wire_system import WireSystem
 
 class GameState(State):
     def __init__(self, game):
@@ -42,6 +43,7 @@ class GameState(State):
         self.capture_system = CaptureSystem(self)
         self.ai_system = AISystem()
         self.path_reservation_system = PathReservationSystem()
+        self.wire_system = WireSystem(self)
         
         # Initialize level
         self.current_level = self.load_level('test')  # Changed to test level for now
@@ -89,56 +91,61 @@ class GameState(State):
     def handle_events(self, events):
         # Handle UI elements first
         for event in events:
+            # Check if any UI element handled the event
+            ui_handled = False
             for ui_element in self.ui_elements:
                 if ui_element.handle_event(event):
-                    return
-            
-        # Let HUD handle events first
-        for event in events:
-            if self.hud.handle_event(event):
-                continue
-            
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.game.change_state('pause')
-                elif event.key == pygame.K_TAB:
-                    # Toggle between UFO and Abduction levels
-                    new_level = 'abduction' if self.current_level == self.levels['ufo'] else 'ufo'
-                    self.change_level(new_level)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Left click
-                    # Convert screen coordinates to world coordinates considering zoom
-                    mouse_x, mouse_y = pygame.mouse.get_pos()
-                    world_x = (mouse_x / self.zoom_level) + int(self.camera_x)
-                    world_y = (mouse_y / self.zoom_level) + int(self.camera_y)
-                    tile_x = int(world_x // TILE_SIZE)
-                    tile_y = int(world_y // TILE_SIZE)
-                    
-                    # Delegate click handling to current level
-                    self.current_level.handle_click(tile_x, tile_y)
-            elif event.type == pygame.MOUSEWHEEL:
-                # Zoom in/out with mouse wheel
-                old_zoom = self.zoom_level
-                self.zoom_level = max(self.min_zoom, 
-                                    min(self.max_zoom, 
-                                        self.zoom_level + event.y * self.zoom_speed))
+                    ui_handled = True
+                    break
                 
-                # Adjust camera to zoom towards mouse position
-                if old_zoom != self.zoom_level:
-                    mouse_x, mouse_y = pygame.mouse.get_pos()
-                    # Calculate zoom adjustment to center on mouse position
-                    zoom_factor = self.zoom_level / old_zoom
-                    self.camera_x += (mouse_x / old_zoom) * (1 - zoom_factor)
-                    self.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
-
-            # If in capture mode, try to mark targets
-            if self.capture_system.capture_mode:
-                for entity in self.current_level.entity_manager.entities:
-                    if isinstance(entity, BaseEnemy):
-                        entity_rect = entity.get_rect()
-                        if entity_rect.collidepoint(world_x, world_y):
-                            self.capture_system.mark_target(entity)
-                            return
+            # If UI didn't handle it and we're in wire mode, let wire system try
+            if not ui_handled and self.wire_mode:
+                if self.wire_system.handle_event(event):
+                    continue
+                
+            # Handle other game events if neither UI nor wire system handled it
+            if not ui_handled:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.game.change_state('pause')
+                    elif event.key == pygame.K_TAB:
+                        # Toggle between UFO and Abduction levels
+                        new_level = 'abduction' if self.current_level == self.levels['ufo'] else 'ufo'
+                        self.change_level(new_level)
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left click
+                        # Convert screen coordinates to world coordinates considering zoom
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        world_x = (mouse_x / self.zoom_level) + int(self.camera_x)
+                        world_y = (mouse_y / self.zoom_level) + int(self.camera_y)
+                        tile_x = int(world_x // TILE_SIZE)
+                        tile_y = int(world_y // TILE_SIZE)
+                        
+                        # Delegate click handling to current level
+                        self.current_level.handle_click(tile_x, tile_y)
+                        
+                        # If in capture mode, try to mark targets
+                        if self.capture_system.capture_mode:
+                            for entity in self.current_level.entity_manager.entities:
+                                if isinstance(entity, BaseEnemy):
+                                    entity_rect = entity.get_rect()
+                                    if entity_rect.collidepoint(world_x, world_y):
+                                        self.capture_system.mark_target(entity)
+                                        break
+                elif event.type == pygame.MOUSEWHEEL:
+                    # Zoom in/out with mouse wheel
+                    old_zoom = self.zoom_level
+                    self.zoom_level = max(self.min_zoom, 
+                                        min(self.max_zoom, 
+                                            self.zoom_level + event.y * self.zoom_speed))
+                    
+                    # Adjust camera to zoom towards mouse position
+                    if old_zoom != self.zoom_level:
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        # Calculate zoom adjustment to center on mouse position
+                        zoom_factor = self.zoom_level / old_zoom
+                        self.camera_x += (mouse_x / old_zoom) * (1 - zoom_factor)
+                        self.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
 
     def update(self, dt):
         if self.current_level:
