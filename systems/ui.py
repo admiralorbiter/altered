@@ -127,11 +127,9 @@ class HUD(UIElement):
         
     def attempt_capture(self):
         """Handle capture button press"""
-        print("Capture button pressed")  # Debug print
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
                              if alien.selected), None)
         if not selected_alien:
-            print("No alien selected")  # Debug print
             return
             
         # Find nearest valid target
@@ -149,10 +147,8 @@ class HUD(UIElement):
                     nearest_target = entity
                     
         if nearest_target:
-            print(f"Found target at distance {min_distance}")  # Debug print
             success = selected_alien.attempt_capture(nearest_target)
             if success:
-                print("Capture successful")  # Debug print
                 self.capture_button.visible = False
                 self.release_button.visible = True
         else:
@@ -194,7 +190,6 @@ class HUD(UIElement):
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            print("Mouse clicked on HUD")  # Debug print
             mouse_pos = pygame.mouse.get_pos()
             if self.capture_button.visible and self.capture_button.rect.collidepoint(mouse_pos):
                 print("Capture button clicked")  # Debug print
@@ -226,7 +221,6 @@ class WireUI(UIElement):
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.ghost_position and self.ghost_valid:
                 tile_x, tile_y = self.ghost_position
-                print(f"Attempting wire placement at {self.ghost_position}")
                 
                 # Create and add the electrical component
                 from core.tiles import ElectricalComponent
@@ -281,9 +275,6 @@ class WireUI(UIElement):
                            (0, 0, tile_size, tile_size), 2)
             
             surface.blit(ghost_surface, (screen_x, screen_y))
-            
-            # Debug print
-            print(f"Drawing ghost wire at: {screen_x}, {screen_y}")
 
     def assign_wire_placement(self):
         """Find nearest cat or selected alien to place the wire"""
@@ -319,9 +310,6 @@ class WireUI(UIElement):
             # Assign the wire placement task
             nearest_entity.set_wire_task(wire_pos, self.selected_component)
             self.pending_wires.pop(0)
-            print(f"Assigned wire placement to entity at distance {min_distance}")
-        else:
-            print("No available entity to place wire")
 
 class CaptureUI(UIElement):
     def __init__(self, game_state):

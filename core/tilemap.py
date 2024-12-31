@@ -33,18 +33,13 @@ class TileMap:
         
     def set_electrical(self, x, y, component_type):
         """Set an electrical component at the given position"""
-        print(f"Setting electrical at ({x}, {y}): {component_type}")
         if 0 <= x < self.width and 0 <= y < self.height:
             # Create the electrical component
             component = ElectricalComponent(component_type)
             # Store in both layer and dictionary
             self.electrical_layer[y][x] = TILES[component_type]
             self.electrical_components[(x, y)] = component
-            print(f"Component stored at ({x}, {y})")
-            print(f"Current components: {self.electrical_components}")
-        else:
-            print(f"Position out of bounds: ({x}, {y})")
-            
+
     def get_electrical(self, x, y):
         """Get electrical component at position"""
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -81,7 +76,6 @@ class TileMap:
                                max(1, int(zoom_level)))
         
         # Then render electrical components
-        print(f"Electrical components: {self.electrical_components}")  # Debug print
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 if (x, y) in self.electrical_components:

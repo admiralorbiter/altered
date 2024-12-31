@@ -162,7 +162,6 @@ class Cat(Entity):
                     # Check if we were placing a wire
                     if hasattr(self, 'wire_task') and self.wire_task:
                         wire_pos, wire_type = self.wire_task
-                        print(f"Cat placing wire at {wire_pos}")
                         component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
                         if component:
                             component.under_construction = False  # Construction complete
@@ -188,7 +187,6 @@ class Cat(Entity):
         
         if hasattr(self, 'wire_task') and self.wire_task:
             wire_pos, wire_type = self.wire_task
-            print(f"Cat placing wire at {wire_pos}")
             component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
             if component:
                 component.under_construction = False  # Construction complete
