@@ -155,7 +155,12 @@ class GameState(State):
 
     def update(self, dt):
         if self.current_level:
-            # Update capture system first
+            # Remove or comment out electrical components debug print
+            # print("\n=== GameState Update ===")
+            # print(f"Total electrical components: {len(self.current_level.tilemap.electrical_components)}")
+            # for pos, comp in self.current_level.tilemap.electrical_components.items():
+            #     print(f"Component at {pos}: {comp}")
+            
             self.capture_system.update(dt)
             self.current_level.update(dt)
             

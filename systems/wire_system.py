@@ -26,7 +26,6 @@ class WireSystem:
         self.is_placing_wire = False
         self.ghost_position = None
         self.ghost_valid = False
-        self.pending_wires = []
         self.start_position = None
         self.current_wire_path = []
 
@@ -103,145 +102,73 @@ class WireSystem:
         return positions
 
     def _place_wire_path(self):
-        print("\n=== DEBUG: Wire Path Placement ===")
-        print(f"Wire mode: {self.game_state.wire_mode}")
-        print(f"Current wire path: {self.current_wire_path}")
+        """Place a path of wires and create tasks for their construction"""
+        print("\n=== Starting Wire Path Placement ===")
+        print(f"Path length: {len(self.current_wire_path)}")
         
         for pos in self.current_wire_path:
-            print(f"\nCreating wire task at position: {pos}")
-            # Add to pending wires first
-            self.pending_wires.append(pos)
-            
-            # Create the task
-            task = self.game_state.task_system.add_task(
-                TaskType.WIRE_CONSTRUCTION,
-                pos,
-                priority=1
+            # Create wire component marked as under construction
+            component = ElectricalComponent(
+                type='wire',
+                under_construction=True
             )
-            print(f"Created task: {task}")
+            
+            # Add the component to the tilemap - this is our single source of truth
+            success = self.game_state.current_level.tilemap.set_electrical(pos[0], pos[1], component)
+            if success:
+                # Create the task
+                task = self.game_state.task_system.add_task(
+                    TaskType.WIRE_CONSTRUCTION,
+                    pos,
+                    priority=1
+                )
+                print(f"Created wire task at: {pos}")
+            else:
+                print(f"Failed to place wire at {pos}")
+
+    def complete_wire_construction(self, position):
+        """Called when a cat completes wire construction at a position"""
+        print("\n=== WIRE CONSTRUCTION DEBUG ===")
+        print(f"Attempting to complete wire at: {position}")
         
-        # Try to assign the pending wires immediately
-        self._assign_wire_placement()
-
-    def _assign_wire_placement(self):
-        print("\n=== DEBUG: Wire Assignment ===")
-        print(f"Pending wires: {self.pending_wires}")
-        print(f"Available tasks: {[t.position for t in self.game_state.task_system.available_tasks]}")
+        # Get the component from tilemap - our single source of truth
+        tilemap = self.game_state.current_level.tilemap
+        component = tilemap.electrical_components.get(position)
         
-        if not self.pending_wires:
-            print("No pending wires to assign")
-            return
-
-        print(f"\n=== Starting Wire Assignments ===")
-        print(f"Pending wires: {self.pending_wires}")
-        wire_assignments = {}
-        
-        for wire_pos in self.pending_wires[:]:  # Create a copy to iterate
-            nearest_entity = self._find_nearest_entity(wire_pos)
-            print(f"Found nearest entity for wire at {wire_pos}: {id(nearest_entity) if nearest_entity else None}")
-            if nearest_entity:
-                # Get the task for this position
-                task = next((t for t in self.game_state.task_system.available_tasks 
-                            if t.position == wire_pos), None)
-                if task:
-                    print(f"Assigning task at {wire_pos} to entity {id(nearest_entity)}")
-                    task.assigned_to = nearest_entity
-                    nearest_entity.current_task = task
-                    nearest_entity.set_wire_task(wire_pos, 'wire')
-                    self.pending_wires.remove(wire_pos)
-                    # Force state change to WORKING
-                    nearest_entity._switch_state(CatState.WORKING)
-
-    def _find_nearest_entity(self, wire_pos):
-        nearest_entity = None
-        min_distance = float('inf')
-        
-        selected_alien = next((alien for alien in self.game_state.current_level.aliens 
-                             if alien.selected), None)
-        if selected_alien:
-            distance = self._calculate_distance(selected_alien, wire_pos)
-            if distance < min_distance:
-                nearest_entity = selected_alien
-                min_distance = distance
-
-        for cat in self.game_state.current_level.cats:
-            if not cat.is_dead and not cat.current_task:
-                distance = self._calculate_distance(cat, wire_pos)
-                if distance < min_distance:
-                    nearest_entity = cat
-                    min_distance = distance
-
-        return nearest_entity
-
-    def _calculate_distance(self, entity, wire_pos):
-        return ((entity.position.x // TILE_SIZE - wire_pos[0]) ** 2 + 
-                (entity.position.y // TILE_SIZE - wire_pos[1]) ** 2) ** 0.5 
-
-    def _is_valid_wire_position(self, x, y):
-        if not (0 <= x < self.game_state.current_level.tilemap.width and 
-                0 <= y < self.game_state.current_level.tilemap.height):
+        if not component:
+            print(f"No component found at {position}")
+            return False
+            
+        if not component.under_construction:
+            print(f"Wire at {position} is already completed")
             return False
         
-        if (x, y) in self.game_state.current_level.tilemap.electrical_components:
-            return False
-        
-        return True 
+        # Update the component's state
+        print(f"Completing wire at {position}")
+        component.under_construction = False
+        return True
 
     def draw(self, surface):
-        # First draw all pending/under construction wires
-        for pos in self.pending_wires:
-            screen_x = (pos[0] * TILE_SIZE - self.game_state.camera_x) * self.game_state.zoom_level
-            screen_y = (pos[1] * TILE_SIZE - self.game_state.camera_y) * self.game_state.zoom_level
-            tile_size = TILE_SIZE * self.game_state.zoom_level
-            
-            # Draw under construction wire in yellow
-            wire_color = (255, 255, 0)  # Yellow for under construction
-            wire_width = max(2 * self.game_state.zoom_level, 1)
-            
-            # Draw the wire line
-            pygame.draw.line(surface, wire_color,
-                            (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
-                            (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
-                            int(wire_width))
-            
-            # Draw connection nodes
-            node_radius = max(2 * self.game_state.zoom_level, 1)
-            pygame.draw.circle(surface, wire_color,
-                             (int(screen_x + tile_size * 0.2), int(screen_y + tile_size * 0.5)),
-                             int(node_radius))
-            pygame.draw.circle(surface, wire_color,
-                             (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
-                             int(node_radius))
+        """Draw all wires based solely on their state in the tilemap"""
+        tilemap = self.game_state.current_level.tilemap
+        
+        # Draw all wires based on their construction state
+        for pos, comp in tilemap.electrical_components.items():
+            if comp.type == 'wire':
+                screen_x = (pos[0] * TILE_SIZE - self.game_state.camera_x) * self.game_state.zoom_level
+                screen_y = (pos[1] * TILE_SIZE - self.game_state.camera_y) * self.game_state.zoom_level
+                tile_size = TILE_SIZE * self.game_state.zoom_level
+                
+                # Color based on construction state
+                wire_color = (255, 255, 0) if comp.under_construction else (0, 255, 255)
+                wire_width = max(2 * self.game_state.zoom_level, 1)
+                
+                pygame.draw.line(surface, wire_color,
+                               (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
+                               (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
+                               int(wire_width))
 
-        # Then draw all completed wires
-        for pos, component in self.game_state.current_level.tilemap.electrical_components.items():
-            if component.type != 'wire':
-                continue
-            
-            screen_x = (pos[0] * TILE_SIZE - self.game_state.camera_x) * self.game_state.zoom_level
-            screen_y = (pos[1] * TILE_SIZE - self.game_state.camera_y) * self.game_state.zoom_level
-            tile_size = TILE_SIZE * self.game_state.zoom_level
-            
-            # Draw completed wire in cyan
-            wire_color = (0, 255, 255)  # Cyan for completed
-            wire_width = max(4 * self.game_state.zoom_level, 2)
-            
-            # Draw the wire line
-            pygame.draw.line(surface, wire_color,
-                            (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
-                            (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
-                            int(wire_width))
-            
-            # Draw connection nodes
-            node_radius = max(3 * self.game_state.zoom_level, 2)
-            pygame.draw.circle(surface, wire_color,
-                             (int(screen_x + tile_size * 0.2), int(screen_y + tile_size * 0.5)),
-                             int(node_radius))
-            pygame.draw.circle(surface, wire_color,
-                             (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
-                             int(node_radius))
-
-        # Finally draw the ghost wire preview if placing
+        # Draw the ghost wire preview if placing
         if self.game_state.wire_mode and self.is_placing_wire and self.start_position and self.ghost_position:
             # Get all positions in the line
             positions = self._get_line_positions(
@@ -262,7 +189,6 @@ class WireSystem:
                 wire_color = (255, 255, 255, 128)
                 wire_width = max(2 * self.game_state.zoom_level, 1)
                 
-                # Draw the ghost wire line
                 pygame.draw.line(surface, wire_color,
                                (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
                                (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
@@ -277,27 +203,12 @@ class WireSystem:
                                 (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
                                 int(node_radius))
 
-    def complete_wire_construction(self, position):
-        """Called when a cat completes wire construction at a position"""
-        print(f"\n=== DEBUG: Completing Wire Construction ===")
-        print(f"Position: {position}")
-        print(f"Current electrical components: {self.game_state.current_level.tilemap.electrical_components}")
+    def _is_valid_wire_position(self, x, y):
+        if not (0 <= x < self.game_state.current_level.tilemap.width and 
+                0 <= y < self.game_state.current_level.tilemap.height):
+            return False
         
-        # Create and configure the wire component
-        component = ElectricalComponent(type='wire', under_construction=False)
+        if (x, y) in self.game_state.current_level.tilemap.electrical_components:
+            return False
         
-        # Add to tilemap's data structures
-        self.game_state.current_level.tilemap.electrical_components[position] = component
-        self.game_state.current_level.tilemap.electrical_layer[position[1]][position[0]] = component
-        
-        # Debug: Verify component was added
-        print(f"Added to electrical_components: {position in self.game_state.current_level.tilemap.electrical_components}")
-        print(f"Component at position: {self.game_state.current_level.tilemap.electrical_components.get(position)}")
-        print(f"Component type: {type(self.game_state.current_level.tilemap.electrical_components.get(position))}")
-        print(f"Added to electrical_layer: {self.game_state.current_level.tilemap.electrical_layer[position[1]][position[0]] is not None}")
-        print(f"Updated electrical components: {self.game_state.current_level.tilemap.electrical_components}")
-        
-        # Remove from pending wires
-        if position in self.pending_wires:
-            self.pending_wires.remove(position)
-            print(f"Removed from pending wires. Remaining: {self.pending_wires}")
+        return True 

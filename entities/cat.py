@@ -63,6 +63,11 @@ class Cat(Entity):
         self.state = CatState.WANDERING
         self.wander_timer = random.uniform(3.0, 8.0)  # Random wander duration
         self.idle_timer = 0
+        
+        # Add build timer properties
+        self.build_timer = 0
+        self.build_time_required = 2.0  # 2 seconds to build
+        self.is_building = False
     
     def _generate_traits(self):
         possible_traits = ['lazy', 'aggressive', 'curious', 'cautious', 'loyal']
@@ -143,6 +148,15 @@ class Cat(Entity):
         if self.moving and self.target_position and self.path:
             self._update_movement(dt)
 
+        # Update building progress
+        if self.is_building:
+            self.build_timer += dt
+            print(f"Building progress: {self.build_timer}/{self.build_time_required}")
+            if self.build_timer >= self.build_time_required:
+                print(f"Wire construction complete at {self.current_task.position}")
+                self.is_building = False
+                self.complete_current_task()
+
     def _update_seeking_food(self, dt):
         if not self.target_food:
             self.target_food = self.find_nearest_food()
@@ -153,13 +167,52 @@ class Cat(Entity):
 
     def _update_working(self, dt):
         if not self.current_task and not self.wire_task:
-            print(f"Cat {id(self)} has no tasks, switching to wandering")
+            print("Cat has no tasks, switching to wandering")
             self._switch_state(CatState.WANDERING)
             return
-        
+
+        # Only log when wire construction is happening
+        if self.wire_task or self.is_building:
+            print(f"\n=== WIRE CONSTRUCTION STATUS ===")
+            print(f"Cat {id(self)}:")
+            print(f"Wire task: {self.wire_task}")
+            print(f"Is building: {self.is_building}")
+            print(f"Build timer: {self.build_timer}/{self.build_time_required}")
+
+        # Update building progress
+        if self.is_building:
+            self.build_timer += dt
+            if self.build_timer >= self.build_time_required:
+                print(f"Wire construction complete at {self.current_task.position}")
+                self.is_building = False
+                self.complete_current_task()
+                return
+
         if not self.moving and self.wire_task:
-            print(f"Cat {id(self)} starting wire task at {self.wire_task[0]}")
-            self._start_next_wire_task()
+            wire_pos = self.wire_task[0]
+            current_pos = (int(self.position.x // TILE_SIZE), 
+                          int(self.position.y // TILE_SIZE))
+            
+            print(f"\n=== WIRE TASK CHECK ===")
+            print(f"Cat position: {current_pos}")
+            print(f"Wire position: {wire_pos}")
+            
+            if (abs(current_pos[0] - wire_pos[0]) <= 1 and 
+                abs(current_pos[1] - wire_pos[1]) <= 1):
+                print(f"Cat in position to complete wire")
+                self.is_building = True
+                self.build_timer = 0
+
+        # If we're not moving and have a task, try to path to it
+        if not self.moving and self.current_task:
+            target_pos = pygame.math.Vector2(
+                (self.current_task.position[0] + 0.5) * TILE_SIZE,
+                (self.current_task.position[1] + 0.5) * TILE_SIZE
+            )
+            if not self._start_path_to_position(target_pos):
+                print(f"Failed to find path to task at {self.current_task.position}")
+                self.current_task = None
+                self._switch_state(CatState.WANDERING)
 
     def _update_wandering(self, dt):
         # Check for tasks first
@@ -173,7 +226,7 @@ class Cat(Entity):
         if self.wander_timer <= 0:
             self._switch_state(CatState.IDLE)
             self.idle_timer = random.uniform(2.0, 5.0)
-        elif not self.moving:
+        elif not self.moving and not self.target_position:  # Only start new movement if we're not moving
             # Pick a random nearby tile to wander to
             self._start_random_movement()
 
@@ -295,22 +348,56 @@ class Cat(Entity):
         # Store the wire task
         self.wire_task = (wire_pos, wire_type)
         
-        # Find the corresponding task in the task system
-        task = next((t for t in self.game_state.task_system.available_tasks 
-                    if t.position == wire_pos and not t.assigned_to), None)
+        # Find adjacent position to wire
+        adjacent_positions = [
+            (wire_pos[0] + 1, wire_pos[1]),
+            (wire_pos[0] - 1, wire_pos[1]),
+            (wire_pos[0], wire_pos[1] + 1),
+            (wire_pos[0], wire_pos[1] - 1)
+        ]
         
-        if task:
-            print(f"Found matching task: {task}")
-            self.current_task = task
-            task.assigned_to = self
+        # Find closest valid adjacent position that we can path to
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        best_pos = None
+        best_distance = float('inf')
         
-        # Switch to working state and start movement
-        self._switch_state(CatState.WORKING)
-        if not self.moving:
-            self._start_path_to_position(pygame.math.Vector2(
-                (wire_pos[0] + 0.5) * TILE_SIZE,
-                (wire_pos[1] + 0.5) * TILE_SIZE
-            ))
+        print(f"Current position: {current_tile}")
+        print(f"Checking adjacent positions to wire at {wire_pos}")
+        
+        for pos in adjacent_positions:
+            # Check if position is walkable and we can path to it
+            if self.game_state.current_level.tilemap.is_walkable(pos[0], pos[1]):
+                test_path = find_path(
+                    current_tile,
+                    pos,
+                    self.game_state.current_level.tilemap,
+                    self.game_state,
+                    self
+                )
+                if test_path:  # Only consider positions we can actually reach
+                    dist = ((pos[0] - current_tile[0]) ** 2 + 
+                           (pos[1] - current_tile[1]) ** 2) ** 0.5
+                    print(f"Found valid path to {pos} with distance {dist}")
+                    if dist < best_distance:
+                        best_pos = pos
+                        best_distance = dist
+        
+        if best_pos:
+            print(f"Selected best adjacent position: {best_pos}")
+            # Start movement to adjacent position
+            self._switch_state(CatState.WORKING)
+            if not self.moving:
+                target_pos = pygame.math.Vector2(
+                    (best_pos[0] + 0.5) * TILE_SIZE,
+                    (best_pos[1] + 0.5) * TILE_SIZE
+                )
+                if self._start_path_to_position(target_pos):
+                    print(f"Started moving to adjacent position {best_pos}")
+                else:
+                    print(f"Failed to start path to adjacent position {best_pos}")
+        else:
+            print(f"No valid adjacent positions found for wire at {wire_pos}")
 
     def _start_next_wire_task(self):
         if not self.wire_task_queue:
@@ -336,97 +423,89 @@ class Cat(Entity):
             print(f"No path found to wire position: {wire_pos}")
 
     def _start_path_to_position(self, target_pos):
-        """Start a path to the given position"""
-        # Convert positions to tile coordinates
-        current_tile = (int(self.position.x // TILE_SIZE), 
-                       int(self.position.y // TILE_SIZE))
-        target_tile = (int(target_pos.x // TILE_SIZE),
-                      int(target_pos.y // TILE_SIZE))
+        """Start moving to a target position"""
+        current_pos = (int(self.position.x // TILE_SIZE), 
+                      int(self.position.y // TILE_SIZE))
+        target_tile = (int(target_pos.x // TILE_SIZE), int(target_pos.y // TILE_SIZE))
         
-        # Find path using pathfinding
-        self.path = find_path(current_tile, target_tile, 
-                             self.game_state.current_level.tilemap)
+        # Don't pathfind to current position
+        if current_pos == target_tile:
+            print(f"Already at target position {target_tile}")
+            return False
         
-        if self.path:
-            # Set initial waypoint
-            self.current_waypoint = 1 if len(self.path) > 1 else 0
-            next_tile = self.path[self.current_waypoint]
-            
-            # Set target position to center of next tile
-            self.target_position = pygame.math.Vector2(
-                (next_tile[0] + 0.5) * TILE_SIZE,
-                (next_tile[1] + 0.5) * TILE_SIZE
-            )
-            self.moving = True
-        else:
-            # If no path found, clear movement state
-            self.moving = False
-            self.target_position = None
-            self.path = None 
+        print(f"\nCat {id(self)} finding path:")
+        print(f"From: {current_pos}")
+        print(f"To: {target_tile}")
+        
+        self.path = find_path(
+            current_pos, 
+            target_tile, 
+            self.game_state.current_level.tilemap,
+            self.game_state,
+            self
+        )
+        
+        if not self.path:
+            print(f"No path found!")
+            return False
+        
+        print(f"Found path: {self.path}")
+        self.current_waypoint = 0
+        next_tile = self.path[self.current_waypoint]
+        self.target_position = pygame.math.Vector2(
+            (next_tile[0] + 0.5) * TILE_SIZE,
+            (next_tile[1] + 0.5) * TILE_SIZE
+        )
+        self.moving = True
+        return True
 
     def _update_movement(self, dt):
-        if not self.target_position:
+        """Update entity movement"""
+        if not self.moving or not self.target_position:
             return
         
         # Calculate direction and distance to target
         direction = self.target_position - self.position
         distance = direction.length()
         
-        if distance > 1:  # If not at target yet
-            # Normalize direction and apply movement
-            direction.normalize_ip()
-            movement = direction * self.speed * dt
-            self.position += movement
-        else:  # If reached target
-            print(f"\n=== DEBUG: Cat reached waypoint ===")
-            print(f"Position: {self.position}")
-            print(f"Target: {self.target_position}")
-            print(f"Current task: {self.current_task}")
-            print(f"Current waypoint: {self.current_waypoint}")
-            print(f"Path length: {len(self.path) if self.path else 0}")
+        # Define a threshold for "close enough"
+        ARRIVAL_THRESHOLD = 1.0
+        
+        if distance < ARRIVAL_THRESHOLD:
+            # Snap to target position when very close
+            self.position = pygame.math.Vector2(self.target_position)
+            print(f"Cat {id(self)} reached target exactly")
             
-            # Update position to exactly match target
-            self.position = self.target_position.copy()
-            
-            # Check if we've reached the final waypoint
-            if not self.path or self.current_waypoint >= len(self.path) - 1:
-                print("=== Reached final waypoint ===")
-                # If we have a current task
-                if self.current_task and self.current_task.type == TaskType.WIRE_CONSTRUCTION:
-                    # Convert current position to tile coordinates
-                    current_tile = (int(self.position.x // TILE_SIZE), 
-                                  int(self.position.y // TILE_SIZE))
-                    task_tile = self.current_task.position
-                    print(f"Current tile: {current_tile}, Task position: {task_tile}")
-                    
-                    # Check if we're at the task position
-                    if current_tile == task_tile:
-                        print(f"=== DEBUG: Completing wire task at {task_tile} ===")
-                        # Complete the wire construction
-                        self.game_state.wire_system.complete_wire_construction(task_tile)
-                        # Mark task as completed
-                        self.current_task.completed = True
-                        # Clear task and wire task
-                        self.current_task = None
-                        self.wire_task = None
-                        self.moving = False
-                        self._switch_state(CatState.WANDERING)
-                        return
-                
-                # If no task or not at task position, just stop moving
-                self.moving = False
-                self.target_position = None
-                self.path = None
-                return
-            
-            # Move to next waypoint
-            self.current_waypoint += 1
-            if self.current_waypoint < len(self.path):
+            # If we have more waypoints, move to next one
+            if self.path and self.current_waypoint < len(self.path) - 1:
+                self.current_waypoint += 1
                 next_tile = self.path[self.current_waypoint]
                 self.target_position = pygame.math.Vector2(
                     (next_tile[0] + 0.5) * TILE_SIZE,
                     (next_tile[1] + 0.5) * TILE_SIZE
                 )
+                print(f"Moving to next waypoint: {next_tile}")
+            else:
+                print(f"Reached final destination!")
+                self.moving = False
+                self.path = None
+                self.target_position = None
+            return
+
+        # Normalize direction and apply speed
+        if distance > 0:  # Prevent division by zero
+            direction = direction / distance
+            move_distance = min(self.speed * dt, distance)  # Don't overshoot
+            movement = direction * move_distance
+            
+            # Update position
+            self.position += movement
+            
+            print(f"\nCat {id(self)} movement update:")
+            print(f"Current pos: {self.position}")
+            print(f"Target pos: {self.target_position}")
+            print(f"Distance: {distance}")
+            print(f"Moving by: {movement}")
 
     def _start_random_movement(self):
         current_tile = (int(self.position.x // TILE_SIZE), 
@@ -440,16 +519,39 @@ class Cat(Entity):
         )) 
 
     def complete_current_task(self):
+        """Complete the current task"""
         if self.current_task and self.current_task.type == TaskType.WIRE_CONSTRUCTION:
-            # Complete the wire construction
-            self.game_state.wire_system.complete_wire_construction(self.current_task.position)
+            print(f"\n=== Cat {id(self)} completing task ===")
+            print(f"Task position: {self.current_task.position}")
             
-        # Remove from queue and clear current task
-        if self.wire_task_queue:
-            self.wire_task_queue.pop(0)
-        self.current_task = None
+            # Complete the task in the task system
+            self.game_state.task_system.complete_task(self.current_task)
+            
+            # Reset all task-related states
+            self.is_building = False
+            self.build_timer = 0
+            self.wire_task = None  # Clear wire task too
+            self.current_task = None
+            self._switch_state(CatState.WANDERING) 
+
+    def update_wire_task(self):
+        """Check if we can complete the wire task"""
+        if not self.wire_task_position:
+            return
         
-        if not self.wire_task_queue:
-            self._switch_state(CatState.WANDERING)
-        else:
-            self._start_next_wire_task() 
+        # Get current tile position
+        current_tile_x = int(self.position.x // TILE_SIZE)
+        current_tile_y = int(self.position.y // TILE_SIZE)
+        wire_x, wire_y = self.wire_task_position
+        
+        print("\n=== WIRE TASK CHECK ===")
+        print(f"Cat position: ({current_tile_x}, {current_tile_y})")
+        print(f"Wire position: ({wire_x}, {wire_y})")
+        print(f"Distance: ({abs(wire_x - current_tile_x)}, {abs(wire_y - current_tile_y)})")
+        
+        # Check if we're close enough to complete the wire
+        if (abs(wire_x - current_tile_x) <= 1 and 
+            abs(wire_y - current_tile_y) <= 1):
+            print("Cat in position to complete wire")
+            if self.current_task:
+                self.complete_current_task() 

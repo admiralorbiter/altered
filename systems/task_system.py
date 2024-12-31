@@ -28,31 +28,37 @@ class TaskSystem:
         return task
 
     def get_available_task(self, entity):
+        """Get the closest available task for an entity"""
         if not self.available_tasks:
             return None
         
-        # Don't assign tasks to entities that already have one
-        if any(task.assigned_to == entity for task in self.assigned_tasks):
-            return None
-        
-        # Sort tasks by priority and distance to entity
         sorted_tasks = sorted(
             self.available_tasks,
             key=lambda t: (
-                -t.priority,  # Higher priority first
-                ((entity.position.x // TILE_SIZE - t.position[0]) ** 2 + 
-                 (entity.position.y // TILE_SIZE - t.position[1]) ** 2)  # Distance
+                (entity.position.x // TILE_SIZE - t.position[0]) ** 2 + 
+                (entity.position.y // TILE_SIZE - t.position[1]) ** 2
             )
         )
         
-        # Get the best task
         task = sorted_tasks[0]
+        
         task.assigned_to = entity
         self.available_tasks.remove(task)
         self.assigned_tasks.append(task)
         return task
 
     def complete_task(self, task):
-        if task in self.assigned_tasks:
-            self.assigned_tasks.remove(task)
-            task.completed = True 
+        """Complete a task"""
+        print(f"\n=== TASK COMPLETION DEBUG ===")
+        print(f"Task type: {task.type}")
+        print(f"Task position: {task.position}")
+        
+        if task.type == TaskType.WIRE_CONSTRUCTION:
+            result = self.game_state.wire_system.complete_wire_construction(task.position)
+            if result:
+                if task in self.assigned_tasks:
+                    self.assigned_tasks.remove(task)
+                task.completed = True
+            print(f"Wire construction result: {result}")
+            return result
+        return False 

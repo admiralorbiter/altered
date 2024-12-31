@@ -6,7 +6,7 @@ class TileMap:
     def __init__(self, width, height, game_state):
         self.width = width
         self.height = height
-        self.game_state = game_state  # Store reference to game_state
+        self.game_state = game_state
         
         # Main ground layer
         self.tiles = [[TILE_FLOOR for _ in range(width)] for _ in range(height)]
@@ -14,7 +14,9 @@ class TileMap:
         # Electrical layer
         self.electrical_layer = [[None for _ in range(width)] for _ in range(height)]
         self.electrical_components = {}  # (x,y) -> ElectricalComponent
-        
+        print("=== Created new TileMap ===")
+        print(f"Size: {width}x{height}")
+    
     def set_tile(self, x, y, tile_name: str):
         """Set a tile using its name"""
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -31,15 +33,37 @@ class TileMap:
         tile = self.get_tile(x, y)
         return tile and tile.walkable
         
-    def set_electrical(self, x, y, component_type):
-        component = ElectricalComponent(type=component_type)
-        self.electrical_components[(x, y)] = component
+    def set_electrical(self, x, y, component):
+        """Store an electrical component at the given position"""
+        print(f"\n=== ELECTRICAL COMPONENT PLACEMENT ===")
+        print(f"Position: ({x}, {y})")
+        print(f"Component type: {component.type}")
+        print(f"Under construction: {component.under_construction}")
+        
+        # Bounds check
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            print(f"Position out of bounds!")
+            return False
+        
+        # Store in both data structures
+        key = (x, y)
+        self.electrical_components[key] = component
         self.electrical_layer[y][x] = component
+        
+        # Verify storage
+        stored = self.electrical_components.get(key)
+        print(f"Stored successfully: {stored is not None}")
+        print(f"Total components: {len(self.electrical_components)}")
+        return True
 
     def get_electrical(self, x, y):
         """Get electrical component at position"""
         if 0 <= x < self.width and 0 <= y < self.height:
-            return self.electrical_layer[y][x]
+            key = (x, y)
+            comp = self.electrical_components.get(key)
+            if comp:
+                print(f"Retrieved component at ({x}, {y}): {comp}")
+            return comp
         return None
 
     def render(self, surface, camera_x, camera_y):
@@ -113,6 +137,7 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
+        """Render an electrical component"""
         # Calculate screen position
         screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
         screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
@@ -122,9 +147,9 @@ class TileMap:
         if not component:
             return
         
-        # Draw the wire regardless of wire_mode
-        wire_color = (0, 255, 255)  # Cyan for placed wires
-        wire_width = max(4 * zoom_level, 2)
+        # Different colors for under construction vs completed
+        wire_color = (255, 255, 0) if component.under_construction else (0, 255, 255)  # Yellow -> Cyan
+        wire_width = max(2 * zoom_level, 1) if component.under_construction else max(4 * zoom_level, 2)
         
         # Calculate wire positions
         start_x = screen_x + int(tile_size * 0.2)
@@ -132,34 +157,17 @@ class TileMap:
         end_x = screen_x + int(tile_size * 0.8)
         end_y = screen_y + int(tile_size * 0.5)
         
-        # Create a surface for the glow effect
-        glow_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
-        
-        # Draw outer glow
-        for i in range(3):
-            glow_width = wire_width + (i * 2)
-            pygame.draw.line(glow_surface, wire_color,
-                            (tile_size * 0.2, tile_size * 0.5),
-                            (tile_size * 0.8, tile_size * 0.5),
-                            int(glow_width))
-        
-        # Apply glow
-        surface.blit(glow_surface, (screen_x, screen_y))
-        
-        # Draw main wire
+        # Draw the wire
         pygame.draw.line(surface, wire_color,
                         (start_x, start_y),
                         (end_x, end_y),
                         int(wire_width))
         
-        # Draw sleek connection nodes
+        # Draw connection nodes
         node_radius = max(3 * zoom_level, 2)
-        inner_radius = max(2 * zoom_level, 1)
-        
-        for pos in [(start_x, start_y), (end_x, end_y)]:
-            # Outer glow
-            pygame.draw.circle(surface, wire_color, pos, int(node_radius + 2))
-            # Main node
-            pygame.draw.circle(surface, wire_color, pos, int(node_radius))
-            # Inner highlight
-            pygame.draw.circle(surface, (255, 255, 255), pos, int(inner_radius))
+        pygame.draw.circle(surface, wire_color,
+                          (start_x, start_y),
+                          int(node_radius))
+        pygame.draw.circle(surface, wire_color,
+                          (end_x, end_y),
+                          int(node_radius))
