@@ -1,5 +1,13 @@
-from dataclasses import dataclass
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import Tuple, List
+
+@dataclass
+class ElectricalComponent:
+    type: str  # 'wire', 'source', 'consumer'
+    capacity: float = 0.0  # Power capacity
+    current_power: float = 0.0
+    connected_tiles: List[Tuple[int, int]] = field(default_factory=list)
+    under_construction: bool = True  # New field
 
 @dataclass
 class Tile:
@@ -50,13 +58,40 @@ TILE_BARRIER = Tile(
     description="Energy barrier"
 )
 
+TILE_WIRE = Tile(
+    id=10,
+    name="wire",
+    color=(255, 255, 0),  # Yellow for visibility
+    walkable=True,
+    description="Basic electrical wire"
+)
+
+TILE_POWER_SOURCE = Tile(
+    id=11,
+    name="power_source",
+    color=(0, 255, 0),  # Green for power
+    walkable=True,
+    description="Power generator"
+)
+
+TILE_POWER_CONSUMER = Tile(
+    id=12,
+    name="power_consumer",
+    color=(255, 0, 0),  # Red for consumer
+    walkable=True,
+    description="Power consumer"
+)
+
 # Dictionary for easy lookup
 TILES = {
     "floor": TILE_FLOOR,
     "grass": TILE_GRASS,
     "rock": TILE_ROCK,
     "wall": TILE_WALL,
-    "barrier": TILE_BARRIER
+    "barrier": TILE_BARRIER,
+    "wire": TILE_WIRE,
+    "power_source": TILE_POWER_SOURCE,
+    "power_consumer": TILE_POWER_CONSUMER
 }
 
 # Dictionary for ID lookup

@@ -11,7 +11,7 @@ from utils.save_load import save_game, load_game
 import random
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
-from systems.ui import HUD, CaptureUI
+from systems.ui import HUD, CaptureUI, WireUI
 from systems.ai_system import AISystem
 from utils.pathfinding import PathReservationSystem
 from systems.capture_system import CaptureSystem
@@ -21,10 +21,32 @@ class GameState(State):
     def __init__(self, game):
         super().__init__(game)
         
-        # Camera and zoom properties
+        # Initialize game state
+        self.zoom_level = 1.0
         self.camera_x = 0
         self.camera_y = 0
-        self.zoom_level = 1.0
+        self.wire_mode = False
+        
+        # Initialize UI elements list before adding elements
+        self.ui_elements = []
+        
+        # Create UI elements
+        self.hud = HUD(self)
+        self.capture_ui = CaptureUI(self)
+        self.wire_ui = WireUI(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, self)
+        
+        # Add UI elements to list
+        self.ui_elements.extend([self.hud, self.capture_ui, self.wire_ui])
+        
+        # Initialize systems
+        self.capture_system = CaptureSystem(self)
+        self.ai_system = AISystem()
+        self.path_reservation_system = PathReservationSystem()
+        
+        # Initialize level
+        self.current_level = self.load_level('test')  # Changed to test level for now
+        
+        # Camera and zoom properties
         self.min_zoom = 0.5  # Maximum zoom out (half size)
         self.max_zoom = 2.0  # Maximum zoom in (double size)
         self.zoom_speed = 0.1  # How much to zoom per scroll
@@ -35,17 +57,23 @@ class GameState(State):
             'abduction': AbductionLevel(self),
             'test': TestLevel(self)
         }
-        self.current_level = None
         # Initialize the entity manager
         self.entity_manager = EntityManager(self)
-        self.hud = HUD(self)
-        self.ai_system = AISystem()
-        self.path_reservation_system = PathReservationSystem()
         self.current_time = 0  # Add time tracking
         
-        # Add capture system
-        self.capture_system = CaptureSystem(self)
-        self.capture_ui = CaptureUI(self)
+    def load_level(self, level_name):
+        """Load a level by name"""
+        if level_name == 'test':
+            self.current_level = TestLevel(self)
+        elif level_name == 'ufo':
+            self.current_level = UfoLevel(self)
+        elif level_name == 'abduction':
+            self.current_level = AbductionLevel(self)
+        else:
+            raise ValueError(f"Unknown level: {level_name}")
+            
+        self.current_level.initialize()
+        return self.current_level
         
     def change_level(self, level_name):
         if self.current_level:
@@ -59,6 +87,12 @@ class GameState(State):
         self.change_level('ufo')
 
     def handle_events(self, events):
+        # Handle UI elements first
+        for event in events:
+            for ui_element in self.ui_elements:
+                if ui_element.handle_event(event):
+                    return
+            
         # Let HUD handle events first
         for event in events:
             if self.hud.handle_event(event):
@@ -141,18 +175,15 @@ class GameState(State):
             world_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
             world_surface.fill(BLACK)
             
-            # Calculate visible area
-            visible_width = WINDOW_WIDTH / self.zoom_level
-            visible_height = WINDOW_HEIGHT / self.zoom_level
-            
             # Render the level
             self.current_level.render(world_surface, self.camera_x, self.camera_y)
             
             # Blit the world surface to the screen
             screen.blit(world_surface, (0, 0))
             
-            # Draw HUD on top
-            self.hud.draw(screen)
+            # Draw all UI elements
+            for ui_element in self.ui_elements:
+                ui_element.draw(screen)
         
         # Flip display
         pygame.display.flip()

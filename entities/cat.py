@@ -138,7 +138,7 @@ class Cat(Entity):
         if self.health < self.max_health * 0.5:
             self.morale = max(0, self.morale - 10 * dt)
         
-        # Movement logic (similar to Alien class)
+        # Movement logic
         if self.target_position and self.moving:
             direction = self.target_position - self.position
             distance = direction.length()
@@ -157,10 +157,12 @@ class Cat(Entity):
                     self.target_position = None
                     self.path = None
                     self.moving = False
-                    if self.seeking_food:
-                        # If we were seeking food but didn't reach it, try finding new food
-                        self.seeking_food = False
-                        self.target_food = None
+                    # Check if we were placing a wire
+                    if hasattr(self, 'wire_task') and self.wire_task:
+                        wire_pos, wire_type = self.wire_task
+                        print(f"Cat placing wire at {wire_pos}")
+                        self.game_state.current_level.tilemap.set_electrical(wire_pos[0], wire_pos[1], wire_type)
+                        self.wire_task = None
             else:
                 # Apply personality traits to movement
                 speed_modifier = 0.7 if 'lazy' in self.traits else 1.2 if 'aggressive' in self.traits else 1.0
@@ -174,6 +176,18 @@ class Cat(Entity):
                     self.position = self.target_position
                 else:
                     self.position += movement
+        
+        if hasattr(self, 'wire_task') and self.wire_task:
+            wire_pos, wire_type = self.wire_task
+            current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
+            
+            if current_tile == wire_pos:
+                # Place the wire and mark it as under construction
+                tilemap = self.game_state.current_level.tilemap
+                if wire_pos in tilemap.electrical_components:
+                    component = tilemap.electrical_components[wire_pos]
+                    component.under_construction = False  # Construction complete
+                self.wire_task = None
     
     def render_with_offset(self, surface, camera_x, camera_y):
         # Get zoom level from game state
@@ -257,3 +271,20 @@ class Cat(Entity):
                            (screen_x - scaled_size.x/2, 
                             screen_y - scaled_size.y/2 + bar_y_offset,
                             hunger_width, 3)) 
+    
+    def set_wire_task(self, wire_pos, wire_type):
+        if not self.is_dead:
+            target_tile = wire_pos
+            current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
+            
+            self.path = find_path(current_tile, target_tile, 
+                                 self.game_state.current_level.tilemap)
+            if self.path:
+                self.current_waypoint = 1 if len(self.path) > 1 else 0
+                next_tile = self.path[self.current_waypoint]
+                self.target_position = pygame.math.Vector2(
+                    (next_tile[0] + 0.5) * TILE_SIZE,
+                    (next_tile[1] + 0.5) * TILE_SIZE
+                )
+                self.moving = True
+                self.wire_task = (wire_pos, wire_type) 

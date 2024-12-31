@@ -1,4 +1,6 @@
 import pygame
+from entities.alien import Alien
+from entities.cat import Cat
 from entities.enemies.base_enemy import BaseEnemy
 from systems.capture_system import CaptureState
 from utils.config import *
@@ -65,32 +67,27 @@ class Label(UIElement):
         super().draw(surface)
 
 class Button(UIElement):
-    def __init__(self, x, y, width, height, text, callback):
+    def __init__(self, x, y, width, height, text, callback=None):
         super().__init__(x, y, width, height)
         self.text = text
         self.callback = callback
-        self.font = pygame.font.Font(None, 32)
-        self.normal_color = (100, 100, 100)  # Gray background
-        self.hover_color = (150, 150, 150)   # Lighter gray when hovering
-        self.text_color = (255, 255, 255)    # White text
-        self.current_color = self.normal_color
+        self.font = pygame.font.Font(None, 24)
+        self.color = (100, 100, 100)
+        self.hover_color = (150, 150, 150)
+        self.text_color = (255, 255, 255)
+        self.is_hovered = False
         
     def handle_event(self, event):
         if not self.visible or not self.active:
             return False
             
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
-                print(f"Button {self.text} clicked")  # Debug print
-                if self.callback:
-                    self.callback()
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+            
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1 and self.is_hovered and self.callback:
+                self.callback()
                 return True
-        elif event.type == pygame.MOUSEMOTION:
-            # Update hover state
-            if self.rect.collidepoint(event.pos):
-                self.current_color = self.hover_color
-            else:
-                self.current_color = self.normal_color
         return False
         
     def draw(self, surface):
@@ -98,7 +95,8 @@ class Button(UIElement):
             return
             
         # Draw button background
-        pygame.draw.rect(surface, self.current_color, self.rect)
+        color = self.hover_color if self.is_hovered else self.color
+        pygame.draw.rect(surface, color, self.rect)
         
         # Draw button text
         text_surface = self.font.render(self.text, True, self.text_color)
@@ -203,28 +201,174 @@ class HUD(UIElement):
                 self.attempt_capture()
         super().handle_event(event)
 
+class WireUI(UIElement):
+    def __init__(self, x, y, width, height, game_state):
+        super().__init__(x, y, width, height)
+        self.game_state = game_state
+        self.ghost_position = None
+        self.ghost_valid = False
+        self.selected_component = 'wire'
+        self.pending_wires = []
+
+    def handle_event(self, event):
+        if not self.game_state.wire_mode:
+            return False
+
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = pygame.mouse.get_pos()
+            # Convert screen coordinates to tile coordinates
+            tile_x = int((mouse_pos[0] / self.game_state.zoom_level + self.game_state.camera_x) // TILE_SIZE)
+            tile_y = int((mouse_pos[1] / self.game_state.zoom_level + self.game_state.camera_y) // TILE_SIZE)
+            self.ghost_position = (tile_x, tile_y)
+            self.ghost_valid = self.game_state.current_level.tilemap.is_walkable(tile_x, tile_y)
+            return True
+
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click
+            if self.ghost_position and self.ghost_valid:
+                tile_x, tile_y = self.ghost_position
+                print(f"Attempting wire placement at {self.ghost_position}")
+                
+                # Create and add the electrical component
+                from core.tiles import ElectricalComponent
+                component = ElectricalComponent(type='wire')
+                self.game_state.current_level.tilemap.electrical_components[(tile_x, tile_y)] = component
+                
+                # Add to pending wires for entity placement
+                self.pending_wires.append(self.ghost_position)
+                self.assign_wire_placement()
+                return True
+
+        return super().handle_event(event)
+
+    def draw(self, surface):
+        # Always draw ghost wire when in wire mode
+        if self.game_state.wire_mode and self.ghost_position:
+            tile_x, tile_y = self.ghost_position
+            
+            # Calculate screen position
+            screen_x = int((tile_x * TILE_SIZE - self.game_state.camera_x) * self.game_state.zoom_level)
+            screen_y = int((tile_y * TILE_SIZE - self.game_state.camera_y) * self.game_state.zoom_level)
+            tile_size = int(TILE_SIZE * self.game_state.zoom_level)
+            
+            # Draw ghost wire with transparency
+            ghost_color = (255, 255, 0, 128) if self.ghost_valid else (255, 0, 0, 128)
+            ghost_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
+            
+            # Draw wire pattern with thicker lines
+            wire_width = max(4 * self.game_state.zoom_level, 2)
+            
+            # Draw background for better visibility
+            pygame.draw.rect(ghost_surface, (0, 0, 0, 100),
+                           (0, 0, tile_size, tile_size))
+            
+            # Draw wire line
+            pygame.draw.line(ghost_surface, ghost_color,
+                           (tile_size * 0.2, tile_size * 0.5),
+                           (tile_size * 0.8, tile_size * 0.5),
+                           int(wire_width))
+            
+            # Draw larger connection nodes
+            node_radius = max(4 * self.game_state.zoom_level, 3)
+            pygame.draw.circle(ghost_surface, ghost_color,
+                             (int(tile_size * 0.2), int(tile_size * 0.5)),
+                             int(node_radius))
+            pygame.draw.circle(ghost_surface, ghost_color,
+                             (int(tile_size * 0.8), int(tile_size * 0.5)),
+                             int(node_radius))
+            
+            # Draw border for better visibility
+            pygame.draw.rect(ghost_surface, ghost_color,
+                           (0, 0, tile_size, tile_size), 2)
+            
+            surface.blit(ghost_surface, (screen_x, screen_y))
+            
+            # Debug print
+            print(f"Drawing ghost wire at: {screen_x}, {screen_y}")
+
+    def assign_wire_placement(self):
+        """Find nearest cat or selected alien to place the wire"""
+        if not self.pending_wires:
+            return
+
+        wire_pos = self.pending_wires[0]
+        
+        # Try to find the nearest entity to place the wire
+        nearest_entity = None
+        min_distance = float('inf')
+        
+        # Check selected alien first
+        selected_alien = next((alien for alien in self.game_state.current_level.aliens 
+                             if alien.selected), None)
+        if selected_alien:
+            distance = ((selected_alien.position.x // TILE_SIZE - wire_pos[0]) ** 2 + 
+                       (selected_alien.position.y // TILE_SIZE - wire_pos[1]) ** 2) ** 0.5
+            if distance < min_distance:
+                nearest_entity = selected_alien
+                min_distance = distance
+
+        # Check cats
+        for cat in self.game_state.current_level.cats:
+            if not cat.is_dead and not cat.current_task:
+                distance = ((cat.position.x // TILE_SIZE - wire_pos[0]) ** 2 + 
+                          (cat.position.y // TILE_SIZE - wire_pos[1]) ** 2) ** 0.5
+                if distance < min_distance:
+                    nearest_entity = cat
+                    min_distance = distance
+
+        if nearest_entity:
+            # Assign the wire placement task
+            nearest_entity.set_wire_task(wire_pos, self.selected_component)
+            self.pending_wires.pop(0)
+            print(f"Assigned wire placement to entity at distance {min_distance}")
+        else:
+            print("No available entity to place wire")
+
 class CaptureUI(UIElement):
     def __init__(self, game_state):
-        super().__init__(10, WINDOW_HEIGHT - 60, 200, 50)
+        # Position at bottom of screen
+        super().__init__(10, WINDOW_HEIGHT - 75, 420, 30)  # Increased width for 3 buttons
         self.game_state = game_state
         
         # Create capture mode toggle button
-        self.capture_mode_btn = Button(10, WINDOW_HEIGHT - 50, 100, 20, 
-                                     "Capture Mode: OFF",
-                                     self.toggle_capture_mode)
+        self.capture_mode_btn = Button(10, WINDOW_HEIGHT - 75, 130, 25,
+                                    "Capture Mode: OFF",
+                                    self.toggle_capture_mode)
         self.add_child(self.capture_mode_btn)
         
         # Create stealth mode toggle button
-        self.stealth_mode_btn = Button(120, WINDOW_HEIGHT - 50, 100, 20,
-                                     "Stealth: OFF",
-                                     self.toggle_stealth_mode)
+        self.stealth_mode_btn = Button(150, WINDOW_HEIGHT - 75, 130, 25,
+                                    "Stealth: OFF",
+                                    self.toggle_stealth_mode)
         self.add_child(self.stealth_mode_btn)
         
+        # Add wire mode toggle button
+        self.wire_mode_btn = Button(290, WINDOW_HEIGHT - 75, 130, 25,
+                                 "Place Wire: OFF",
+                                 self.toggle_wire_mode)
+        self.add_child(self.wire_mode_btn)
+    
+    def toggle_wire_mode(self):
+        """Toggle wire placement mode"""
+        self.game_state.wire_mode = not self.game_state.wire_mode
+        self.wire_mode_btn.text = f"Place Wire: {'ON' if self.game_state.wire_mode else 'OFF'}"
+        
+        # Turn off other modes when wire mode is enabled
+        if self.game_state.wire_mode:
+            self.game_state.capture_system.capture_mode = False
+            self.capture_mode_btn.text = "Capture Mode: OFF"
+            self.game_state.capture_system.stealth_mode = False
+            self.stealth_mode_btn.text = "Stealth: OFF"
+    
     def toggle_capture_mode(self):
         system = self.game_state.capture_system
         system.capture_mode = not system.capture_mode
         self.capture_mode_btn.text = f"Capture Mode: {'ON' if system.capture_mode else 'OFF'}"
         
+        # Turn off wire mode when capture mode is enabled
+        if system.capture_mode:
+            self.game_state.wire_mode = False
+            self.wire_mode_btn.text = "Place Wire: OFF"
+    
     def toggle_stealth_mode(self):
         system = self.game_state.capture_system
         system.stealth_mode = not system.stealth_mode

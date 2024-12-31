@@ -66,16 +66,12 @@ class Alien(Entity):
             direction = self.target_position - self.position
             distance = direction.length()
             
-            # Increased threshold slightly to prevent jittering
             if distance < 2:  # Reached waypoint
-                # Snap to exact position
                 self.position = self.target_position
                 
-                # Check if there are more waypoints
                 if self.path and self.current_waypoint < len(self.path) - 1:
                     self.current_waypoint += 1
                     next_tile = self.path[self.current_waypoint]
-                    # Ensure exact pixel positioning
                     self.target_position = pygame.math.Vector2(
                         round((next_tile[0] + 0.5) * TILE_SIZE),
                         round((next_tile[1] + 0.5) * TILE_SIZE)
@@ -84,6 +80,12 @@ class Alien(Entity):
                     self.target_position = None
                     self.path = None
                     self.moving = False
+                    # Check if we were placing a wire
+                    if hasattr(self, 'wire_task') and self.wire_task:
+                        wire_pos, wire_type = self.wire_task
+                        print(f"Alien placing wire at {wire_pos}")
+                        self.game_state.current_level.tilemap.set_electrical(wire_pos[0], wire_pos[1], wire_type)
+                        self.wire_task = None
                     self.deselect()
             else:
                 # Normalize direction and apply speed
@@ -192,3 +194,21 @@ class Alien(Entity):
             self.carrying_target.carrier = None
             self.carrying_target = None
             self.speed /= 0.6  # Restore normal speed 
+    
+    def set_wire_task(self, wire_pos, wire_type):
+        target_tile = wire_pos
+        current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
+        
+        self.path = find_path(current_tile, target_tile, 
+                             self.game_state.current_level.tilemap,
+                             self.game_state, self)
+        
+        if self.path:
+            self.current_waypoint = 1 if len(self.path) > 1 else 0
+            next_tile = self.path[self.current_waypoint]
+            self.target_position = pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )
+            self.moving = True
+            self.wire_task = (wire_pos, wire_type) 
