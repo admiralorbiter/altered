@@ -2,6 +2,7 @@ import pygame
 
 from entities.alien import Alien
 from levels.test_level import TestLevel
+from systems.debug_ui import DebugUI
 from .base_state import State
 from utils.config import *
 from entities.manager import EntityManager
@@ -17,6 +18,7 @@ from utils.pathfinding import PathReservationSystem
 from systems.capture_system import CaptureSystem
 from entities.enemies.base_enemy import BaseEnemy
 from systems.wire_system import WireSystem
+from systems.task_system import TaskSystem
 
 class GameState(State):
     def __init__(self, game):
@@ -35,6 +37,7 @@ class GameState(State):
         self.hud = HUD(self)
         self.capture_ui = CaptureUI(self)
         self.wire_ui = WireUI(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, self)
+        self.debug_ui = DebugUI(self)
         
         # Add UI elements to list
         self.ui_elements.extend([self.hud, self.capture_ui, self.wire_ui])
@@ -44,6 +47,7 @@ class GameState(State):
         self.ai_system = AISystem()
         self.path_reservation_system = PathReservationSystem()
         self.wire_system = WireSystem(self)
+        self.task_system = TaskSystem(self)
         
         # Initialize level
         self.current_level = self.load_level('test')  # Changed to test level for now
@@ -112,6 +116,8 @@ class GameState(State):
                         # Toggle between UFO and Abduction levels
                         new_level = 'abduction' if self.current_level == self.levels['ufo'] else 'ufo'
                         self.change_level(new_level)
+                    elif event.key == pygame.K_F3:  # F3 to toggle debug UI
+                        self.debug_ui.toggle()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
                         # Convert screen coordinates to world coordinates considering zoom
@@ -185,12 +191,18 @@ class GameState(State):
             # Render the level
             self.current_level.render(world_surface, self.camera_x, self.camera_y)
             
+            # Draw wire system preview
+            self.wire_system.draw(world_surface)
+            
             # Blit the world surface to the screen
             screen.blit(world_surface, (0, 0))
             
             # Draw all UI elements
             for ui_element in self.ui_elements:
                 ui_element.draw(screen)
+            
+            # Draw debug UI last so it's on top
+            self.debug_ui.draw(screen)
         
         # Flip display
         pygame.display.flip()

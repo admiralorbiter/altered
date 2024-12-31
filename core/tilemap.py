@@ -32,13 +32,9 @@ class TileMap:
         return tile and tile.walkable
         
     def set_electrical(self, x, y, component_type):
-        """Set an electrical component at the given position"""
-        if 0 <= x < self.width and 0 <= y < self.height:
-            # Create the electrical component
-            component = ElectricalComponent(component_type)
-            # Store in both layer and dictionary
-            self.electrical_layer[y][x] = TILES[component_type]
-            self.electrical_components[(x, y)] = component
+        component = ElectricalComponent(type=component_type)
+        self.electrical_components[(x, y)] = component
+        self.electrical_layer[y][x] = component
 
     def get_electrical(self, x, y):
         """Get electrical component at position"""
@@ -47,7 +43,6 @@ class TileMap:
         return None
 
     def render(self, surface, camera_x, camera_y):
-        """Render visible tiles with zoom"""
         zoom_level = self.game_state.zoom_level
         
         # Calculate visible area
@@ -118,10 +113,6 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        # Only render electrical components if wire mode is on
-        if not self.game_state.wire_mode:
-            return
-        
         # Calculate screen position
         screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
         screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
@@ -131,14 +122,8 @@ class TileMap:
         if not component:
             return
         
-        # Colors based on construction state
-        if component.under_construction:
-            wire_color = (255, 165, 0)  # Orange
-            glow_color = (255, 140, 0, 100)  # Darker orange with alpha
-        else:
-            wire_color = (0, 255, 255)  # Cyan
-            glow_color = (0, 200, 200, 100)  # Darker cyan with alpha
-        
+        # Draw the wire regardless of wire_mode
+        wire_color = (0, 255, 255)  # Cyan for placed wires
         wire_width = max(4 * zoom_level, 2)
         
         # Calculate wire positions
@@ -153,7 +138,7 @@ class TileMap:
         # Draw outer glow
         for i in range(3):
             glow_width = wire_width + (i * 2)
-            pygame.draw.line(glow_surface, glow_color,
+            pygame.draw.line(glow_surface, wire_color,
                             (tile_size * 0.2, tile_size * 0.5),
                             (tile_size * 0.8, tile_size * 0.5),
                             int(glow_width))
@@ -173,7 +158,7 @@ class TileMap:
         
         for pos in [(start_x, start_y), (end_x, end_y)]:
             # Outer glow
-            pygame.draw.circle(surface, glow_color, pos, int(node_radius + 2))
+            pygame.draw.circle(surface, wire_color, pos, int(node_radius + 2))
             # Main node
             pygame.draw.circle(surface, wire_color, pos, int(node_radius))
             # Inner highlight

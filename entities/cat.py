@@ -1,10 +1,19 @@
 import pygame
 import random
+from enum import Enum
 
+from core.tiles import ElectricalComponent
 from entities.items.food import Food
 from utils.pathfinding import find_path
 from .base_entity import Entity
 from utils.config import *
+from systems.task_system import TaskType
+
+class CatState(Enum):
+    WANDERING = "wandering"
+    SEEKING_FOOD = "seeking_food"
+    WORKING = "working"
+    IDLE = "idle"
 
 class Cat(Entity):
     def __init__(self, x, y, game_state):
@@ -37,6 +46,10 @@ class Cat(Entity):
         self.seeking_food = False
         self.target_food = None
         
+        # Wire task tracking
+        self.wire_task = None
+        self.wire_task_queue = []
+        
         # Personality traits (randomly assigned)
         self.traits = self._generate_traits()
         
@@ -46,7 +59,10 @@ class Cat(Entity):
                      random.randint(50, 100),
                      200)  # Brownish with alpha
         
-        self.wire_task_queue = []  # Queue for wire tasks
+        # Add state tracking
+        self.state = CatState.WANDERING
+        self.wander_timer = random.uniform(3.0, 8.0)  # Random wander duration
+        self.idle_timer = 0
     
     def _generate_traits(self):
         possible_traits = ['lazy', 'aggressive', 'curious', 'cautious', 'loyal']
@@ -94,109 +110,100 @@ class Cat(Entity):
     
     def update(self, dt):
         if self.is_dead:
-            return  # Dead cats don't update
-            
+            return
+
         # Update hunger
         self.hunger = max(0, self.hunger - self.hunger_rate * dt)
         
-        # Check for death conditions
-        if self.health <= 0:
-            self.is_dead = True
-            self.color = (100, 100, 100, 200)  # Gray out dead cats
-            return
-            
-        # Health decreases when starving
-        if self.hunger <= 0:
-            self.health = max(0, self.health - 5 * dt)  # Lose 5 health per second when starving
-            
-        # Start seeking food when hungry
-        if self.hunger <= self.max_hunger * (self.critical_hunger / 100) and not self.seeking_food:
+        # First priority: Check for tasks regardless of current state
+        if not self.current_task and not self.wire_task:
+            task = self.game_state.task_system.get_available_task(self)
+            if task and task.type == TaskType.WIRE_CONSTRUCTION:
+                print(f"Cat {id(self)} got new task: {task.type.value} @ {task.position}")
+                self.set_wire_task(task.position, 'wire')
+                self.current_task = task
+                self._switch_state(CatState.WORKING)
+                return
+
+        # State machine update
+        if self.hunger < self.critical_hunger:
+            self._switch_state(CatState.SEEKING_FOOD)
+        
+        # Update based on current state
+        if self.state == CatState.SEEKING_FOOD:
+            self._update_seeking_food(dt)
+        elif self.state == CatState.WORKING:
+            self._update_working(dt)
+        elif self.state == CatState.WANDERING:
+            self._update_wandering(dt)
+        elif self.state == CatState.IDLE:
+            self._update_idle(dt)
+
+        # Handle movement
+        if self.moving and self.target_position and self.path:
+            self._update_movement(dt)
+
+    def _update_seeking_food(self, dt):
+        if not self.target_food:
             self.target_food = self.find_nearest_food()
             if self.target_food:
-                self.seeking_food = True
-                current_tile = (int(self.position.x // TILE_SIZE), 
-                               int(self.position.y // TILE_SIZE))
-                target_tile = (int(self.target_food.position.x // TILE_SIZE),
-                              int(self.target_food.position.y // TILE_SIZE))
-                self.path = find_path(current_tile, target_tile, 
-                                    self.game_state.current_level.tilemap,
-                                    self.game_state, self)
-                if self.path:
-                    self.current_waypoint = 1 if len(self.path) > 1 else 0
-                    next_tile = self.path[self.current_waypoint]
-                    self.target_position = pygame.math.Vector2(
-                        (next_tile[0] + 0.5) * TILE_SIZE,
-                        (next_tile[1] + 0.5) * TILE_SIZE
-                    )
-                    self.moving = True
-        
-        # Check if we reached food
-        if self.seeking_food and self.target_food:
-            distance = (self.target_food.position - self.position).length()
-            if distance < TILE_SIZE:
-                self.eat_food(self.target_food)
-        
-        # Update morale based on conditions (simplified)
-        if self.health < self.max_health * 0.5:
-            self.morale = max(0, self.morale - 10 * dt)
-        
-        # Movement logic
-        if self.target_position and self.moving:
-            direction = self.target_position - self.position
-            distance = direction.length()
-            
-            if distance < 2:  # Reached waypoint
-                self.position = self.target_position
-                
-                if self.path and self.current_waypoint < len(self.path) - 1:
-                    self.current_waypoint += 1
-                    next_tile = self.path[self.current_waypoint]
-                    self.target_position = pygame.math.Vector2(
-                        round((next_tile[0] + 0.5) * TILE_SIZE),
-                        round((next_tile[1] + 0.5) * TILE_SIZE)
-                    )
-                else:
-                    self.target_position = None
-                    self.path = None
-                    self.moving = False
-                    # Check if we were placing a wire
-                    if hasattr(self, 'wire_task') and self.wire_task:
-                        wire_pos, wire_type = self.wire_task
-                        component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
-                        if component:
-                            component.under_construction = False  # Construction complete
-                        self.wire_task_queue.pop(0)  # Remove completed task
-                        self.wire_task = None
-                        
-                        # Start next task if available
-                        if self.wire_task_queue:
-                            self._start_next_wire_task()
+                self._start_path_to_position(self.target_food.position)
             else:
-                # Apply personality traits to movement
-                speed_modifier = 0.7 if 'lazy' in self.traits else 1.2 if 'aggressive' in self.traits else 1.0
-                if self.seeking_food and self.hunger < self.max_hunger * 0.05:  # Very hungry cats move faster
-                    speed_modifier *= 1.5
-                
-                normalized_dir = direction.normalize()
-                movement = normalized_dir * self.speed * speed_modifier * dt
-                
-                if movement.length() > distance:
-                    self.position = self.target_position
-                else:
-                    self.position += movement
+                self._switch_state(CatState.WANDERING)
+
+    def _update_working(self, dt):
+        if not self.current_task and not self.wire_task:
+            print(f"Cat {id(self)} has no tasks, switching to wandering")
+            self._switch_state(CatState.WANDERING)
+            return
         
-        if hasattr(self, 'wire_task') and self.wire_task:
-            wire_pos, wire_type = self.wire_task
-            component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
-            if component:
-                component.under_construction = False  # Construction complete
-            self.wire_task_queue.pop(0)  # Remove completed task
-            self.wire_task = None
+        if not self.moving and self.wire_task:
+            print(f"Cat {id(self)} starting wire task at {self.wire_task[0]}")
+            self._start_next_wire_task()
+
+    def _update_wandering(self, dt):
+        # Check for tasks first
+        if self.wire_task_queue or self.current_task:
+            print(f"Cat {id(self)} found pending task, switching to WORKING")
+            self._switch_state(CatState.WORKING)
+            return
+        
+        # Normal wandering behavior
+        self.wander_timer -= dt
+        if self.wander_timer <= 0:
+            self._switch_state(CatState.IDLE)
+            self.idle_timer = random.uniform(2.0, 5.0)
+        elif not self.moving:
+            # Pick a random nearby tile to wander to
+            self._start_random_movement()
+
+    def _update_idle(self, dt):
+        # Check for tasks first
+        if self.wire_task_queue or self.current_task:
+            print(f"Cat {id(self)} found pending task, switching to WORKING")
+            self._switch_state(CatState.WORKING)
+            return
+        
+        # Normal idle behavior
+        self.idle_timer -= dt
+        if self.idle_timer <= 0:
+            self._switch_state(CatState.WANDERING)
+            self.wander_timer = random.uniform(3.0, 8.0)
+
+    def _switch_state(self, new_state):
+        if new_state == self.state:
+            return
             
-            # Start next task if available
-            if self.wire_task_queue:
+        print(f"\nCat {id(self)} switching state: {self.state.value} -> {new_state.value}")
+        print(f"Current task: {self.current_task}")
+        print(f"Wire task queue: {self.wire_task_queue}")
+        
+        self.state = new_state
+        if new_state == CatState.WORKING:
+            print(f"Cat {id(self)} starting work")
+            if not self.moving and (self.wire_task_queue or self.wire_task):
                 self._start_next_wire_task()
-    
+
     def render_with_offset(self, surface, camera_x, camera_y):
         # Get zoom level from game state
         zoom_level = self.game_state.zoom_level
@@ -281,21 +288,42 @@ class Cat(Entity):
                             hunger_width, 3)) 
     
     def set_wire_task(self, wire_pos, wire_type):
-        if not self.is_dead:
-            self.wire_task_queue.append((wire_pos, wire_type))
-            if not self.moving:  # Only start new path if not already moving
-                self._start_next_wire_task()
+        if self.is_dead:
+            return
+        
+        print(f"\n=== DEBUG: Cat {id(self)} receiving wire task at: {wire_pos} ===")
+        # Store the wire task
+        self.wire_task = (wire_pos, wire_type)
+        
+        # Find the corresponding task in the task system
+        task = next((t for t in self.game_state.task_system.available_tasks 
+                    if t.position == wire_pos and not t.assigned_to), None)
+        
+        if task:
+            print(f"Found matching task: {task}")
+            self.current_task = task
+            task.assigned_to = self
+        
+        # Switch to working state and start movement
+        self._switch_state(CatState.WORKING)
+        if not self.moving:
+            self._start_path_to_position(pygame.math.Vector2(
+                (wire_pos[0] + 0.5) * TILE_SIZE,
+                (wire_pos[1] + 0.5) * TILE_SIZE
+            ))
 
     def _start_next_wire_task(self):
         if not self.wire_task_queue:
+            print("Wire task queue empty")
             return
         
         wire_pos, wire_type = self.wire_task_queue[0]
+        print(f"Starting wire task at position: {wire_pos}")
         current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
         
-        self.path = find_path(current_tile, wire_pos, 
-                             self.game_state.current_level.tilemap)
+        self.path = find_path(current_tile, wire_pos, self.game_state.current_level.tilemap)
         if self.path:
+            print(f"Found path of length: {len(self.path)}")
             self.current_waypoint = 1 if len(self.path) > 1 else 0
             next_tile = self.path[self.current_waypoint]
             self.target_position = pygame.math.Vector2(
@@ -303,4 +331,125 @@ class Cat(Entity):
                 (next_tile[1] + 0.5) * TILE_SIZE
             )
             self.moving = True
-            self.wire_task = self.wire_task_queue[0]  # Current task 
+            self.wire_task = self.wire_task_queue[0]
+        else:
+            print(f"No path found to wire position: {wire_pos}")
+
+    def _start_path_to_position(self, target_pos):
+        """Start a path to the given position"""
+        # Convert positions to tile coordinates
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        target_tile = (int(target_pos.x // TILE_SIZE),
+                      int(target_pos.y // TILE_SIZE))
+        
+        # Find path using pathfinding
+        self.path = find_path(current_tile, target_tile, 
+                             self.game_state.current_level.tilemap)
+        
+        if self.path:
+            # Set initial waypoint
+            self.current_waypoint = 1 if len(self.path) > 1 else 0
+            next_tile = self.path[self.current_waypoint]
+            
+            # Set target position to center of next tile
+            self.target_position = pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )
+            self.moving = True
+        else:
+            # If no path found, clear movement state
+            self.moving = False
+            self.target_position = None
+            self.path = None 
+
+    def _update_movement(self, dt):
+        if not self.target_position:
+            return
+        
+        # Calculate direction and distance to target
+        direction = self.target_position - self.position
+        distance = direction.length()
+        
+        if distance > 1:  # If not at target yet
+            # Normalize direction and apply movement
+            direction.normalize_ip()
+            movement = direction * self.speed * dt
+            self.position += movement
+        else:  # If reached target
+            print(f"\n=== DEBUG: Cat reached waypoint ===")
+            print(f"Position: {self.position}")
+            print(f"Target: {self.target_position}")
+            print(f"Current task: {self.current_task}")
+            print(f"Current waypoint: {self.current_waypoint}")
+            print(f"Path length: {len(self.path) if self.path else 0}")
+            
+            # Update position to exactly match target
+            self.position = self.target_position.copy()
+            
+            # Check if we've reached the final waypoint
+            if not self.path or self.current_waypoint >= len(self.path) - 1:
+                print("=== Reached final waypoint ===")
+                # If we have a current task
+                if self.current_task and self.current_task.type == TaskType.WIRE_CONSTRUCTION:
+                    # Convert current position to tile coordinates
+                    current_tile = (int(self.position.x // TILE_SIZE), 
+                                  int(self.position.y // TILE_SIZE))
+                    task_tile = self.current_task.position
+                    print(f"Current tile: {current_tile}, Task position: {task_tile}")
+                    
+                    # Check if we're at the task position
+                    if current_tile == task_tile:
+                        print(f"=== DEBUG: Completing wire task at {task_tile} ===")
+                        # Complete the wire construction
+                        self.game_state.wire_system.complete_wire_construction(task_tile)
+                        # Mark task as completed
+                        self.current_task.completed = True
+                        # Clear task and wire task
+                        self.current_task = None
+                        self.wire_task = None
+                        self.moving = False
+                        self._switch_state(CatState.WANDERING)
+                        return
+                
+                # If no task or not at task position, just stop moving
+                self.moving = False
+                self.target_position = None
+                self.path = None
+                return
+            
+            # Move to next waypoint
+            self.current_waypoint += 1
+            if self.current_waypoint < len(self.path):
+                next_tile = self.path[self.current_waypoint]
+                self.target_position = pygame.math.Vector2(
+                    (next_tile[0] + 0.5) * TILE_SIZE,
+                    (next_tile[1] + 0.5) * TILE_SIZE
+                )
+
+    def _start_random_movement(self):
+        current_tile = (int(self.position.x // TILE_SIZE), 
+                       int(self.position.y // TILE_SIZE))
+        rand_offset = (random.randint(-5, 5), random.randint(-5, 5))
+        target_tile = (current_tile[0] + rand_offset[0],
+                      current_tile[1] + rand_offset[1])
+        self._start_path_to_position(pygame.math.Vector2(
+            (target_tile[0] + 0.5) * TILE_SIZE,
+            (target_tile[1] + 0.5) * TILE_SIZE
+        )) 
+
+    def complete_current_task(self):
+        if self.current_task and self.current_task.type == TaskType.WIRE_CONSTRUCTION:
+            # Complete the wire construction
+            self.game_state.wire_system.complete_wire_construction(self.current_task.position)
+            
+        # Remove from queue and clear current task
+        if self.wire_task_queue:
+            self.wire_task_queue.pop(0)
+        self.current_task = None
+        
+        if not self.wire_task_queue:
+            self._switch_state(CatState.WANDERING)
+        else:
+            self._start_next_wire_task() 

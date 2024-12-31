@@ -7,7 +7,7 @@ class ElectricalComponent:
     capacity: float = 0.0  # Power capacity
     current_power: float = 0.0
     connected_tiles: List[Tuple[int, int]] = field(default_factory=list)
-    under_construction: bool = True  # New field
+    under_construction: bool = True  # This stays True forever
 
 @dataclass
 class Tile:
