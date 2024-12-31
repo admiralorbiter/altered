@@ -35,8 +35,7 @@ class TestLevel(BaseLevel):
         ]
         
         for x, y in cat_positions:
-            cat = Cat(x, y)
-            cat.game_state = self.game_state
+            cat = Cat(x, y, self.game_state)
             self.cats.append(cat)
             self.entity_manager.add_entity(cat)
         

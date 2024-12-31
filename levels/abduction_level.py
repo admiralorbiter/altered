@@ -44,8 +44,7 @@ class AbductionLevel(BaseLevel):
                 x = random.randint(0, MAP_WIDTH - 1)
                 y = random.randint(0, MAP_HEIGHT - 1)
                 if self.tilemap.is_walkable(x, y):
-                    cat = Cat(x, y)
-                    cat.game_state = self.game_state
+                    cat = Cat(x, y, self.game_state)
                     self.cats.append(cat)
                     self.entity_manager.add_entity(cat)
                     break

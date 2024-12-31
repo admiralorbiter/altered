@@ -7,7 +7,7 @@ from .base_entity import Entity
 from utils.config import *
 
 class Cat(Entity):
-    def __init__(self, x, y):
+    def __init__(self, x, y, game_state):
         # Convert tile coordinates to pixel coordinates like in Alien class
         pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
@@ -45,6 +45,8 @@ class Cat(Entity):
                      random.randint(100, 150), 
                      random.randint(50, 100),
                      200)  # Brownish with alpha
+        
+        self.wire_task_queue = []  # Queue for wire tasks
     
     def _generate_traits(self):
         possible_traits = ['lazy', 'aggressive', 'curious', 'cautious', 'loyal']
@@ -161,8 +163,15 @@ class Cat(Entity):
                     if hasattr(self, 'wire_task') and self.wire_task:
                         wire_pos, wire_type = self.wire_task
                         print(f"Cat placing wire at {wire_pos}")
-                        self.game_state.current_level.tilemap.set_electrical(wire_pos[0], wire_pos[1], wire_type)
+                        component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
+                        if component:
+                            component.under_construction = False  # Construction complete
+                        self.wire_task_queue.pop(0)  # Remove completed task
                         self.wire_task = None
+                        
+                        # Start next task if available
+                        if self.wire_task_queue:
+                            self._start_next_wire_task()
             else:
                 # Apply personality traits to movement
                 speed_modifier = 0.7 if 'lazy' in self.traits else 1.2 if 'aggressive' in self.traits else 1.0
@@ -179,15 +188,16 @@ class Cat(Entity):
         
         if hasattr(self, 'wire_task') and self.wire_task:
             wire_pos, wire_type = self.wire_task
-            current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
+            print(f"Cat placing wire at {wire_pos}")
+            component = self.game_state.current_level.tilemap.electrical_components.get(wire_pos)
+            if component:
+                component.under_construction = False  # Construction complete
+            self.wire_task_queue.pop(0)  # Remove completed task
+            self.wire_task = None
             
-            if current_tile == wire_pos:
-                # Place the wire and mark it as under construction
-                tilemap = self.game_state.current_level.tilemap
-                if wire_pos in tilemap.electrical_components:
-                    component = tilemap.electrical_components[wire_pos]
-                    component.under_construction = False  # Construction complete
-                self.wire_task = None
+            # Start next task if available
+            if self.wire_task_queue:
+                self._start_next_wire_task()
     
     def render_with_offset(self, surface, camera_x, camera_y):
         # Get zoom level from game state
@@ -274,17 +284,25 @@ class Cat(Entity):
     
     def set_wire_task(self, wire_pos, wire_type):
         if not self.is_dead:
-            target_tile = wire_pos
-            current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
-            
-            self.path = find_path(current_tile, target_tile, 
-                                 self.game_state.current_level.tilemap)
-            if self.path:
-                self.current_waypoint = 1 if len(self.path) > 1 else 0
-                next_tile = self.path[self.current_waypoint]
-                self.target_position = pygame.math.Vector2(
-                    (next_tile[0] + 0.5) * TILE_SIZE,
-                    (next_tile[1] + 0.5) * TILE_SIZE
-                )
-                self.moving = True
-                self.wire_task = (wire_pos, wire_type) 
+            self.wire_task_queue.append((wire_pos, wire_type))
+            if not self.moving:  # Only start new path if not already moving
+                self._start_next_wire_task()
+
+    def _start_next_wire_task(self):
+        if not self.wire_task_queue:
+            return
+        
+        wire_pos, wire_type = self.wire_task_queue[0]
+        current_tile = (int(self.position.x // TILE_SIZE), int(self.position.y // TILE_SIZE))
+        
+        self.path = find_path(current_tile, wire_pos, 
+                             self.game_state.current_level.tilemap)
+        if self.path:
+            self.current_waypoint = 1 if len(self.path) > 1 else 0
+            next_tile = self.path[self.current_waypoint]
+            self.target_position = pygame.math.Vector2(
+                (next_tile[0] + 0.5) * TILE_SIZE,
+                (next_tile[1] + 0.5) * TILE_SIZE
+            )
+            self.moving = True
+            self.wire_task = self.wire_task_queue[0]  # Current task 

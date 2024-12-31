@@ -124,67 +124,59 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        """Render a single electrical component"""
-        if (tile_x, tile_y) in self.electrical_components:
-            component = self.electrical_components[(tile_x, tile_y)]
-            screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
-            screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
-            tile_size = int(TILE_SIZE * zoom_level)
-            
-            if component.under_construction:
-                # Draw construction animation
-                construction_color = (255, 165, 0)  # Orange
-                progress_dots = int((pygame.time.get_ticks() % 1000) / 250) + 1
-                
-                # Draw construction border
-                pygame.draw.rect(surface, construction_color,
-                               (screen_x, screen_y, tile_size, tile_size), 2)
-                
-                # Draw progress dots
-                dot_radius = max(4 * zoom_level, 2)
-                for i in range(progress_dots):
-                    x = screen_x + (i + 1) * tile_size / 5
-                    y = screen_y + tile_size / 2
-                    pygame.draw.circle(surface, construction_color, (int(x), int(y)), int(dot_radius))
-            else:
-                # Debug: Draw a bright red rectangle around the tile
-                pygame.draw.rect(surface, (255, 0, 0), 
-                                (screen_x, screen_y, tile_size, tile_size), 2)
-                
-                # Draw wire with extreme visibility
-                wire_color = (0, 255, 255)  # Cyan
-                wire_width = max(12 * zoom_level, 6)  # Very thick
-                
-                # Draw black background for contrast
-                pygame.draw.rect(surface, (0, 0, 0),
-                                (screen_x + 2, screen_y + 2, 
-                                 tile_size - 4, tile_size - 4))
-                
-                # Draw wire components
-                start_x = screen_x + int(tile_size * 0.2)
-                start_y = screen_y + int(tile_size * 0.5)
-                end_x = screen_x + int(tile_size * 0.8)
-                end_y = screen_y + int(tile_size * 0.5)
-                
-                # Draw thick white outline
-                pygame.draw.line(surface, (255, 255, 255),
-                                (start_x, start_y),
-                                (end_x, end_y),
-                                int(wire_width + 4))
-                
-                # Draw main wire
-                pygame.draw.line(surface, wire_color,
-                                (start_x, start_y),
-                                (end_x, end_y),
-                                int(wire_width))
-                
-                # Draw large connection nodes
-                node_radius = max(8 * zoom_level, 6)
-                for pos in [(start_x, start_y), (end_x, end_y)]:
-                    pygame.draw.circle(surface, (255, 255, 255), pos, 
-                                     int(node_radius + 2))  # White outline
-                    pygame.draw.circle(surface, wire_color, pos, 
-                                     int(node_radius))
-                
-                # Debug print
-                print(f"Drawing wire at screen pos ({screen_x}, {screen_y})")
+        # Calculate screen position
+        screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
+        screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
+        tile_size = int(TILE_SIZE * zoom_level)
+        
+        component = self.electrical_components.get((tile_x, tile_y))
+        if not component:
+            return
+        
+        # Colors based on construction state
+        if component.under_construction:
+            wire_color = (255, 165, 0)  # Orange
+            glow_color = (255, 140, 0, 100)  # Darker orange with alpha
+        else:
+            wire_color = (0, 255, 255)  # Cyan
+            glow_color = (0, 200, 200, 100)  # Darker cyan with alpha
+        
+        wire_width = max(4 * zoom_level, 2)
+        
+        # Calculate wire positions
+        start_x = screen_x + int(tile_size * 0.2)
+        start_y = screen_y + int(tile_size * 0.5)
+        end_x = screen_x + int(tile_size * 0.8)
+        end_y = screen_y + int(tile_size * 0.5)
+        
+        # Create a surface for the glow effect
+        glow_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
+        
+        # Draw outer glow
+        for i in range(3):
+            glow_width = wire_width + (i * 2)
+            pygame.draw.line(glow_surface, glow_color,
+                            (tile_size * 0.2, tile_size * 0.5),
+                            (tile_size * 0.8, tile_size * 0.5),
+                            int(glow_width))
+        
+        # Apply glow
+        surface.blit(glow_surface, (screen_x, screen_y))
+        
+        # Draw main wire
+        pygame.draw.line(surface, wire_color,
+                        (start_x, start_y),
+                        (end_x, end_y),
+                        int(wire_width))
+        
+        # Draw sleek connection nodes
+        node_radius = max(3 * zoom_level, 2)
+        inner_radius = max(2 * zoom_level, 1)
+        
+        for pos in [(start_x, start_y), (end_x, end_y)]:
+            # Outer glow
+            pygame.draw.circle(surface, glow_color, pos, int(node_radius + 2))
+            # Main node
+            pygame.draw.circle(surface, wire_color, pos, int(node_radius))
+            # Inner highlight
+            pygame.draw.circle(surface, (255, 255, 255), pos, int(inner_radius))
