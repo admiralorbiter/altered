@@ -118,6 +118,10 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
+        # Only render electrical components if wire mode is on
+        if not self.game_state.wire_mode:
+            return
+        
         # Calculate screen position
         screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
         screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)

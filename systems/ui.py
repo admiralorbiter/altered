@@ -235,8 +235,11 @@ class WireUI(UIElement):
         return super().handle_event(event)
 
     def draw(self, surface):
-        # Always draw ghost wire when in wire mode
-        if self.game_state.wire_mode and self.ghost_position:
+        # Only draw ghost wire when in wire mode
+        if not self.game_state.wire_mode:
+            return
+        
+        if self.ghost_position:
             tile_x, tile_y = self.ghost_position
             
             # Calculate screen position
