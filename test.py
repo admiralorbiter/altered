@@ -6,31 +6,25 @@ from components.health_component import HealthComponent
 from components.selectable_component import SelectableComponent
 from components.capture_component import CaptureComponent
 from components.pathfinding_component import PathfindingComponent
+from components.wire_component import WireComponent
 from utils.config import TILE_SIZE
 
 class TestTilemap:
     """Simple tilemap for testing"""
     def __init__(self, width, height):
-        print(f"\nTILEMAP INIT DEBUG:")
         self.width = width
         self.height = height
         # Make all tiles walkable
         self.tiles = [[True for _ in range(height)] for _ in range(width)]
-        print(f"Tilemap dimensions: {width}x{height}")
-        print("All tiles set to walkable")
 
     def is_walkable(self, x: int, y: int) -> bool:
         """Check if the given tile coordinates are walkable"""
-        print(f"\nCHECKING WALKABLE: ({x}, {y})")
         if 0 <= x < self.width and 0 <= y < self.height:
             try:
                 result = self.tiles[x][y]
-                print(f"Tile ({x}, {y}) walkable: {result}")
                 return result
             except IndexError:
-                print(f"Index error accessing tile ({x}, {y})")
                 return False
-        print(f"Tile ({x}, {y}) out of bounds")
         return False
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
@@ -50,13 +44,9 @@ class TestTilemap:
 class TestGameState:
     """Simple game state for testing"""
     def __init__(self):
-        print("\nGAME STATE INIT DEBUG:")
         self.zoom_level = 1
         self.tilemap = TestTilemap(25, 19)
-        print(f"Tilemap created: {self.tilemap is not None}")
         self.current_level = type('Level', (), {'tilemap': self.tilemap})()
-        print(f"Current level created: {self.current_level is not None}")
-        print(f"Level has tilemap: {hasattr(self.current_level, 'tilemap')}")
         self.current_time = 0
 
 class TestAlien(Entity):
@@ -64,15 +54,15 @@ class TestAlien(Entity):
         super().__init__(x, y)
         self.position = pygame.math.Vector2(x, y)  # Ensure position is set
         self.size = pygame.math.Vector2(32, 32)
-        print(f"Created alien at position: {self.position}")  # Debug
         
         # Add components
-        self.movement = self.add_component(MovementComponent(self))
+        self.movement = self.add_component(MovementComponent(self, speed=300))
         self.renderer = self.add_component(AlienRenderComponent(self))
         self.health = self.add_component(HealthComponent(self))
         self.selectable = self.add_component(SelectableComponent(self))
         self.capture = self.add_component(CaptureComponent(self))
         self.pathfinding = self.add_component(PathfindingComponent(self))
+        self.wire = self.add_component(WireComponent(self))
         
         # Initialize components
         for component in self.components.values():
@@ -124,16 +114,9 @@ while running:
             elif event.button == 3:  # Right click
                 # Only move if alien is selected
                 if alien.selectable.is_selected:
-                    print(f"\nRIGHT CLICK DEBUG:")
-                    print(f"Mouse position: ({mouse_x}, {mouse_y})")
-                    print(f"Converting to tile: ({tile_x}, {tile_y})")
-                    print(f"Alien selected: {alien.selectable.is_selected}")
-                    print(f"Tile walkable: {game_state.tilemap.is_walkable(tile_x, tile_y)}")
                     
                     if game_state.tilemap.is_walkable(tile_x, tile_y):
-                        print("Calling pathfinding.set_target()...")
                         result = alien.pathfinding.set_target(tile_x, tile_y)
-                        print(f"set_target() returned: {result}")
 
     # Update entities
     alien.update(dt)
@@ -163,9 +146,6 @@ while running:
         # Show current position
         pos_text = font.render(f"Pos: ({int(alien.position.x)}, {int(alien.position.y)})", True, (255, 255, 255))
         screen.blit(pos_text, (10, 70))
-    
-    if alien.movement.moving:
-        print(f"Alien moving: Current={alien.position}, Target={alien.movement.target_position}")
     
     pygame.display.flip()
 

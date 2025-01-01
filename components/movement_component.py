@@ -8,51 +8,44 @@ class MovementComponent(Component):
         self.speed = speed
         self.target_position = None
         self.moving = False
-        print(f"MovementComponent initialized with speed: {speed}")  # Debug
+        self.position = pygame.math.Vector2(entity.position)  # Track position separately
 
     def set_target_position(self, pixel_x: float, pixel_y: float) -> None:
         """Set movement target in pixel coordinates"""
-        print(f"Movement target set: ({pixel_x}, {pixel_y})")  # Debug
         self.target_position = pygame.math.Vector2(pixel_x, pixel_y)
         self.moving = True
-        print(f"Current position: {self.entity.position}, Target: {self.target_position}")  # Debug
 
     def update(self, dt: float) -> None:
         """Update entity position"""
         if not self.moving or not self.target_position:
             return
 
-        # Calculate movement direction and distance
         try:
-            direction = pygame.math.Vector2(
-                self.target_position.x - self.entity.position.x,
-                self.target_position.y - self.entity.position.y
-            )
+            # Calculate movement direction and distance
+            direction = self.target_position - self.position
             distance = direction.length()
             
-            print(f"\nMOVEMENT UPDATE:")
-            print(f"Current position: {self.entity.position}")
-            print(f"Target position: {self.target_position}")
-            print(f"Distance to target: {distance}")
-            print(f"Direction: {direction}")
-            print(f"Delta time: {dt}")
-            
-            if distance < 2:  # Reached target
-                self.entity.position.x = self.target_position.x
-                self.entity.position.y = self.target_position.y
+            if distance < 1:  # Reached target (smaller threshold)
+                self.position = pygame.math.Vector2(self.target_position)
+                self.entity.position = pygame.math.Vector2(self.position)
                 self.moving = False
                 self.target_position = None
-                print("Target reached!")
             else:
                 # Normalize direction and apply movement
-                direction.scale_to_length(self.speed * dt)
-                old_pos = pygame.math.Vector2(self.entity.position)
-                self.entity.position += direction
-                print(f"Movement vector: {direction}")
-                print(f"New position: {self.entity.position}")
+                normalized_dir = direction.normalize()
+                movement = normalized_dir * self.speed * dt
+                
+                # Check if we would overshoot
+                if movement.length() > distance:
+                    self.position = pygame.math.Vector2(self.target_position)
+                else:
+                    self.position += movement
+                
+                # Update entity position
+                self.entity.position.x = round(self.position.x)
+                self.entity.position.y = round(self.position.y)
                 
         except (TypeError, AttributeError) as e:
-            print(f"ERROR in movement update: {e}")
             self.moving = False
             self.target_position = None
 

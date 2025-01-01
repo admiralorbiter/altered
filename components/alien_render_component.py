@@ -2,7 +2,7 @@ import pygame
 from components.render_component import RenderComponent
 
 class AlienRenderComponent(RenderComponent):
-    def __init__(self, entity, color=(255, 192, 203, 128)):
+    def __init__(self, entity, color=(255, 192, 203, 128)):  # Pink with alpha
         super().__init__(entity, color)
         self.selected = False
 

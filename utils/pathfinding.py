@@ -23,19 +23,11 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
     A* pathfinding algorithm
     Returns a list of tile coordinates from start to end, or None if no path exists
     """
-    print(f"\nPATHFINDING DEBUG:")
-    print(f"Start tile: {start}")
-    print(f"End tile: {end}")
-    print(f"Start walkable: {tilemap.is_walkable(*start)}")
-    print(f"End walkable: {tilemap.is_walkable(*end)}")
-    
     # Check if start and end are valid
     if not tilemap.is_walkable(*start):
-        print(f"ERROR: Start tile {start} is not walkable")
         return None
         
     if not tilemap.is_walkable(*end):
-        print(f"ERROR: End tile {end} is not walkable")
         return None
 
     # Initialize data structures
@@ -71,11 +63,9 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
                 frontier.put((priority, next_pos))
                 came_from[next_pos] = current
     
-    print(f"Nodes explored: {nodes_explored}")
     
     # Build path
     if end not in came_from:
-        print("ERROR: No path found!")
         return None
         
     path = []
@@ -85,5 +75,4 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         current = came_from[current]
     path.reverse()
     
-    print(f"Path found with {len(path)} steps: {path}")
     return path 
