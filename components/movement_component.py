@@ -1,6 +1,7 @@
 import pygame
 from components.base_component import Component
-from components.selectable_component import SelectableComponent
+import random
+from utils.config import TILE_SIZE
 
 class MovementComponent(Component):
     def __init__(self, entity, speed: float = 300):
@@ -9,6 +10,48 @@ class MovementComponent(Component):
         self.target_position = None
         self.moving = False
         self.position = pygame.math.Vector2(entity.position)  # Track position separately
+        self._pathfinding = None
+
+    def start(self) -> None:
+        """Get reference to pathfinding component"""
+        # Import here to avoid circular import
+        from components.pathfinding_component import PathfindingComponent
+        self._pathfinding = self.entity.get_component(PathfindingComponent)
+
+    @property
+    def path(self) -> list:
+        """Compatibility property for path access"""
+        return self._pathfinding.path if self._pathfinding else []
+
+    @property
+    def has_arrived(self) -> bool:
+        """Check if entity has arrived at target position"""
+        return not self.moving
+
+    def allow_movement(self) -> None:
+        """Allow movement to start"""
+        self.moving = False
+        self.target_position = None
+
+    def start_random_movement(self) -> None:
+        """Start movement to a random position"""
+        # Get random position within level bounds
+        level = self.entity.game_state.current_level
+        
+        # Get level dimensions safely
+        if hasattr(level, 'get_dimensions'):
+            width, height = level.get_dimensions()
+        elif hasattr(level.tilemap, 'width') and hasattr(level.tilemap, 'height'):
+            width, height = level.tilemap.width, level.tilemap.height
+        else:
+            # Fallback dimensions
+            width, height = 20, 20  # Default size if no dimensions available
+        
+        # Calculate random position in pixels
+        x = random.randint(0, width - 1) * TILE_SIZE + TILE_SIZE // 2
+        y = random.randint(0, height - 1) * TILE_SIZE + TILE_SIZE // 2
+        
+        self.set_target_position(x, y)
 
     def set_target_position(self, pixel_x: float, pixel_y: float) -> None:
         """Set movement target in pixel coordinates"""

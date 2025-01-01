@@ -52,23 +52,9 @@ class InputHandler:
         return False
 
     def _handle_mouse_wheel(self, event):
-        # Store old zoom for comparison
-        old_zoom = self.game_state.zoom_level
+        # Get mouse position before zoom
+        mouse_x, mouse_y = pygame.mouse.get_pos()
         
-        # Calculate new zoom level
-        new_zoom = max(self.game_state.min_zoom,
-                      min(self.game_state.max_zoom,
-                          self.game_state.zoom_level + event.y * self.game_state.zoom_speed))
-        
-        # If zoom changed, adjust camera
-        if old_zoom != new_zoom:
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            zoom_factor = new_zoom / old_zoom
-            
-            # Update game state
-            self.game_state.zoom_level = new_zoom
-            self.game_state.camera_x += (mouse_x / old_zoom) * (1 - zoom_factor)
-            self.game_state.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
-            return True
-            
-        return False
+        # Let camera system handle the zoom
+        self.game_state.camera_system.handle_zoom(event.y, (mouse_x, mouse_y))
+        return True

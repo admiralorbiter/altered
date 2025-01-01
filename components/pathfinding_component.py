@@ -1,19 +1,23 @@
-from components.base_component import Component
-from components.movement_component import MovementComponent
-from utils.pathfinding import find_path
-from utils.config import TILE_SIZE
 import pygame
+from components.base_component import Component
+from typing import TYPE_CHECKING
+from utils.config import TILE_SIZE
+from utils.pathfinding import find_path
+
+if TYPE_CHECKING:
+    from components.movement_component import MovementComponent
 
 class PathfindingComponent(Component):
     def __init__(self, entity):
         super().__init__(entity)
-        self.path = None
-        self.current_waypoint = 0
+        self.path = []
         self._movement = None
         self.tile_size = TILE_SIZE
+        self.current_waypoint = 0
 
     def start(self) -> None:
-        """Get reference to movement component when starting"""
+        """Get reference to movement component"""
+        from components.movement_component import MovementComponent
         self._movement = self.entity.get_component(MovementComponent)
 
     def set_target(self, target_x: float, target_y: float) -> bool:
