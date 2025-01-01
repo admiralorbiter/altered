@@ -2,7 +2,7 @@ import pygame
 import random
 from entities.items.food import Food
 from utils.types import EntityState, TaskType
-from .base_entity import Entity
+from components.base_entity import Entity
 from utils.config import *
 from utils.task_handler import TaskHandler
 from utils.movement_handler import MovementHandler

@@ -4,6 +4,7 @@ from typing import Optional
 from enum import Enum
 from components.movement_component import MovementComponent
 from components.selectable_component import SelectableComponent
+from utils.config import TILE_SIZE
 
 class CaptureState(Enum):
     NONE = "none"
@@ -11,11 +12,11 @@ class CaptureState(Enum):
     CARRIED = "carried"
 
 class CaptureComponent(Component):
-    def __init__(self, entity, capture_range: float = 64, capture_strength: float = 50):
+    def __init__(self, entity):
         super().__init__(entity)
-        self.capture_range = capture_range
-        self.capture_strength = capture_strength
         self.carrying_target = None
+        self.capture_range = TILE_SIZE * 2  # Default capture range
+        self.capture_strength = 50
         self.capture_state = CaptureState.NONE
         self.carrier = None
 

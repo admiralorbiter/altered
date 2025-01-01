@@ -1,7 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Tuple
-from entities.base_entity import Entity
+from components.base_entity import Entity
 
 class TaskType(Enum):
     """Defines the different types of tasks that entities can perform in the game."""

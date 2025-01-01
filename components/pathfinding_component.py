@@ -10,34 +10,36 @@ class PathfindingComponent(Component):
         self.path = None
         self.current_waypoint = 0
         self._movement = None
-        self.tile_size = TILE_SIZE  # Use the global tile size
+        self.tile_size = TILE_SIZE
 
     def start(self) -> None:
         """Get reference to movement component when starting"""
         self._movement = self.entity.get_component(MovementComponent)
 
-    def set_target(self, tile_x: int, tile_y: int) -> bool:
-        """Set path to target tile using A* pathfinding"""
-        
+    def set_target(self, target_x: float, target_y: float) -> bool:
+        """Set path to target position using A* pathfinding"""
         if not self._movement:
             return False
 
-        # Get current tile position
+        # Convert pixel coordinates to tile coordinates
         current_tile = (
             int(self.entity.position.x // self.tile_size),
             int(self.entity.position.y // self.tile_size)
         )
-        target_tile = (tile_x, tile_y)
+        target_tile = (
+            int(target_x // self.tile_size),
+            int(target_y // self.tile_size)
+        )
 
         # Get tilemap from game state
         try:
             tilemap = self.entity.game_state.current_level.tilemap
-        except AttributeError as e:
+        except AttributeError:
             return False
 
         # Find path using A*
         self.path = find_path(
-            current_tile, 
+            current_tile,
             target_tile,
             tilemap,
             self.entity.game_state,
@@ -89,8 +91,8 @@ class PathfindingComponent(Component):
                     self.path[i + 1][0] * self.tile_size + self.tile_size // 2,
                     self.path[i + 1][1] * self.tile_size + self.tile_size // 2
                 )
-                pygame.draw.line(surface, (0, 255, 0), 
-                               ((start_pos[0] - camera_x) * zoom, 
+                pygame.draw.line(surface, (0, 255, 0),
+                               ((start_pos[0] - camera_x) * zoom,
                                 (start_pos[1] - camera_y) * zoom),
-                               ((end_pos[0] - camera_x) * zoom, 
-                                (end_pos[1] - camera_y) * zoom), 2) 
+                               ((end_pos[0] - camera_x) * zoom,
+                                (end_pos[1] - camera_y) * zoom), 2)

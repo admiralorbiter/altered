@@ -2,7 +2,7 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from entities.base_entity import Entity
+    from components.base_entity import Entity
 
 class Component(ABC):
     """

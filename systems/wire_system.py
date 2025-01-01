@@ -1,5 +1,5 @@
 import pygame
-from entities.base_entity import Entity
+from components.base_entity import Entity
 from utils.types import TaskType, Task
 from utils.config import *
 from core.tiles import ElectricalComponent

@@ -1,4 +1,4 @@
-from entities.base_entity import Entity
+from components.base_entity import Entity
 from abc import ABC, abstractmethod
 import pygame
 from systems.capture_system import CaptureState

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
 from utils.types import Task, TaskType, EntityState
-from entities.base_entity import Entity
+from components.base_entity import Entity
 from utils.config import TILE_SIZE
 
 class TaskSystem:
