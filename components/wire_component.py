@@ -33,20 +33,22 @@ class WireComponent(Component):
         # If pathfinding is complete and we're not moving
         if not self._pathfinding.path and not self.entity.get_component('movement').moving:
             wire_pos, wire_type = self.wire_task
-            # Place the wire
             try:
-                electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
-                if electrical_comp:
-                    # Only mark as completed if task progress is complete
-                    task_comp = self.entity.get_component('task')
-                    if task_comp and task_comp.current_task and task_comp.current_task.progress >= task_comp.current_task.work_time:
-                        electrical_comp.under_construction = False  # Mark as completed
-                        print(f"[DEBUG] Wire at {wire_pos} marked as completed")
-                        # Clear the task only after successful completion
+                task_comp = self.entity.get_component('task')
+                # Check if task is complete (progress >= required work time)
+                if task_comp and task_comp.current_task:
+                    if task_comp.progress >= task_comp.required_progress:
+                        print(f"[DEBUG] Wire construction complete at {wire_pos}")
+                        # Get the electrical component and update its state
+                        electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+                        if electrical_comp:
+                            electrical_comp.under_construction = False
+                            electrical_comp.is_built = True
+                            print(f"[DEBUG] Wire at {wire_pos} visual state updated: under_construction={electrical_comp.under_construction}, is_built={electrical_comp.is_built}")
                         self.wire_task = None
-                        # Notify task system of completion
-                        self.entity.game_state.task_system.complete_task(task_comp.current_task)
-                        task_comp.stop()
+                elif not task_comp or not task_comp.current_task:
+                    print(f"[DEBUG] Clearing wire task at {wire_pos} (no task)")
+                    self.wire_task = None
             except AttributeError as e:
                 print(f"Error updating wire: {e}")
 

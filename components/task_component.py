@@ -65,13 +65,14 @@ class TaskComponent(Component):
         
         # Only update progress if we're at the task location
         if self._is_at_task_position():
-            # Update progress on the task itself
-            self.current_task._work_progress += dt
-            print(f"[DEBUG] Task update for {self.current_task.type}:")
-            print(f"  - Progress: {self.current_task._work_progress:.1f}/{self.current_task.work_time}")
+            # Don't increment if already at max progress
+            if self._work_progress < self.current_task.work_time:
+                self._work_progress += dt
+                print(f"[DEBUG] Task update for {self.current_task.type}:")
+                print(f"  - Progress: {self._work_progress:.1f}/{self.current_task.work_time}")
 
             # Check for task completion
-            if self.current_task._work_progress >= self.current_task.work_time:
+            if self._work_progress >= self.current_task.work_time:
                 print("[DEBUG] Task completed!")
                 
                 # Handle wire construction completion
@@ -80,11 +81,11 @@ class TaskComponent(Component):
                     electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
                     if electrical_comp:
                         electrical_comp.under_construction = False
+                        electrical_comp.is_built = True  # Make sure to set this flag
                         print(f"[DEBUG] Wire at {wire_pos} marked as completed")
                 
-                # Return task to system and clear it
-                self.entity.game_state.task_system.complete_task(self.current_task)
-                self.current_task = None
+                # Complete task and notify task system
+                self._complete_task()
                 return True
         
         return False
@@ -94,24 +95,28 @@ class TaskComponent(Component):
         if not self._task_position:
             return False
             
-        # Use exact position for more precise distance check
+        # Convert pixel coordinates to tile coordinates
         cat_x = self.entity.position.x / TILE_SIZE
         cat_y = self.entity.position.y / TILE_SIZE
         
-        # Calculate distance to task center
-        dx = abs(self._task_position[0] + 0.5 - cat_x)
-        dy = abs(self._task_position[1] + 0.5 - cat_y)
+        # Get task center in tile coordinates
+        task_x = self._task_position[0]  # Remove +0.5 offset
+        task_y = self._task_position[1]  # Remove +0.5 offset
         
-        # Use a smaller working radius (1.5 tiles)
-        working_radius = 1.5
-        is_in_range = dx <= working_radius and dy <= working_radius
+        # Calculate distance to task center
+        dx = abs(task_x - cat_x)
+        dy = abs(task_y - cat_y)
+        
+        # Use a larger working radius and check Manhattan distance
+        working_radius = 2.0  # Increased from 1.5
+        is_in_range = (dx + dy) <= working_radius  # Use Manhattan distance instead of separate checks
         
         # Add more detailed debugging
-        if is_in_range:
-            print(f"[DEBUG] Cat in range of task:")
-            print(f"  - Cat pos: ({cat_x:.1f}, {cat_y:.1f})")
-            print(f"  - Task pos: ({self._task_position[0]}, {self._task_position[1]})")
-            print(f"  - Distance: dx={dx:.1f}, dy={dy:.1f}")
+        print(f"[DEBUG] Cat position check:")
+        print(f"  - Cat tile pos: ({cat_x:.1f}, {cat_y:.1f})")
+        print(f"  - Task pos: ({task_x:.1f}, {task_y:.1f})")
+        print(f"  - Manhattan distance: {dx + dy:.1f}")
+        print(f"  - In range: {is_in_range}")
         
         return is_in_range
 

@@ -69,11 +69,24 @@ class TaskSystem:
         return task
 
     def complete_task(self, task):
-        """Mark a task as completed and remove it from tracking"""
-        if task.assigned_to in self.assigned_tasks:
-            del self.assigned_tasks[task.assigned_to]
-        task.completed = True
+        """Complete and remove a task from the system"""
         print(f"[DEBUG] Task completed: {task.type} at {task.position}")
+        
+        # Remove from available tasks if present
+        if task in self.available_tasks:
+            self.available_tasks.remove(task)
+        
+        # Remove from assigned tasks if present
+        for entity, assigned_task in list(self.assigned_tasks.items()):
+            if assigned_task == task:
+                del self.assigned_tasks[entity]
+                break
+        
+        # Clear task assignment
+        task.assigned_to = None
+        task.completed = True
+        
+        return True
 
     def return_task(self, task):
         """Return an assigned task back to the available pool"""
