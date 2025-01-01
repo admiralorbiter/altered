@@ -10,15 +10,10 @@ class TaskSystem:
         self.available_tasks = []
         self.assigned_tasks = []
 
-    def add_task(self, task_type, position, priority=1):
-        """Add a new task to the system"""
-        print(f"\n=== Adding New Task ===")
-        print(f"Type: {task_type}")
-        print(f"Position: {position}")
-        
-        task = Task(type=task_type, position=position, priority=priority)
+    def add_task(self, type: TaskType, position: Tuple[int, int], priority: int = 1) -> Task:
+        """Add a new task with specified priority"""
+        task = Task(type=type, position=position, priority=priority)
         self.available_tasks.append(task)
-        print(f"Available tasks after adding: {len(self.available_tasks)}")
         return task
 
     def get_available_task(self, entity):
@@ -26,19 +21,19 @@ class TaskSystem:
         # First check if this entity already has a task
         for task in self.assigned_tasks:
             if task.assigned_to == entity:
-                # Important: Make sure the entity knows about this task through its handler
-                if not entity.task_handler.has_task():
-                    print(f"Reassigning existing task at {task.position}")
-                    entity.task_handler.set_wire_task(task.position, 'wire')
-                return task
+                return task  # Don't reassign if entity already has this task
             
         # If no tasks available, return None
         if not self.available_tasks:
             return None
         
-        # Get closest task
+        # Get closest task that isn't already assigned
+        available_tasks = [t for t in self.available_tasks if not t.assigned_to]
+        if not available_tasks:
+            return None
+        
         sorted_tasks = sorted(
-            self.available_tasks,
+            available_tasks,
             key=lambda t: (
                 (entity.position.x // TILE_SIZE - t.position[0]) ** 2 + 
                 (entity.position.y // TILE_SIZE - t.position[1]) ** 2
@@ -46,8 +41,6 @@ class TaskSystem:
         )
         
         task = sorted_tasks[0]
-        print(f"Assigning new task at {task.position}")
-        
         # Move task from available to assigned
         self.available_tasks.remove(task)
         task.assigned_to = entity
@@ -62,3 +55,25 @@ class TaskSystem:
         task.completed = True
         task.assigned_to = None
         return True 
+
+    def return_task(self, task):
+        """Return a task to the available pool"""
+        if task in self.assigned_tasks:
+            self.assigned_tasks.remove(task)
+            task.assigned_to = None
+            self.available_tasks.append(task)
+            print(f"Task at {task.position} returned to available pool") 
+
+    def get_highest_priority_task(self, entity) -> Optional[Task]:
+        """Get the highest priority available task"""
+        available_tasks = [
+            task for task in self.available_tasks 
+            if not task.assigned_to
+        ]
+        
+        if not available_tasks:
+            return None
+            
+        # Sort by priority (highest first)
+        available_tasks.sort(key=lambda t: t.priority, reverse=True)
+        return available_tasks[0] 

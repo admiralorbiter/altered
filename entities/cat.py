@@ -31,7 +31,7 @@ class Cat(Entity):
         self.state = EntityState.WANDERING
         self.game_state = game_state
         self.task_handler = TaskHandler(self)
-        self.movement_handler = MovementHandler(self)
+        self.movement_handler = MovementHandler(self, game_state)
         
         # Timers
         self.wander_timer = random.uniform(3.0, 8.0)
@@ -48,14 +48,23 @@ class Cat(Entity):
         if self.is_dead:
             return
 
-        # Update hunger
+        # Update hunger first (survival priority)
         self._update_hunger(dt)
-        
-        # State machine
-        if self.state == EntityState.WANDERING:
-            self._update_wandering(dt)
-        elif self.state == EntityState.WORKING:
+
+        # Only check for tasks if we're not already working
+        if self.state != EntityState.WORKING:
+            if not self.task_handler.has_task():
+                task = self.game_state.task_system.get_available_task(self)
+                if task:
+                    if self.task_handler.start_task(task):
+                        self._switch_state(EntityState.WORKING)
+                        return
+
+        # Regular state updates
+        if self.state == EntityState.WORKING:
             self._update_working(dt)
+        elif self.state == EntityState.WANDERING:
+            self._update_wandering(dt)
         elif self.state == EntityState.SEEKING_FOOD:
             self._update_seeking_food(dt)
         elif self.state == EntityState.IDLE:
@@ -70,10 +79,17 @@ class Cat(Entity):
         # Check for tasks first
         if not self.task_handler.has_task():
             task = self.game_state.task_system.get_available_task(self)
-            if task and task.type == TaskType.WIRE_CONSTRUCTION:
-                self.task_handler.start_task(task)
-                self._switch_state(EntityState.WORKING)
-                return
+            if task:
+                print(f"\n=== TASK ASSIGNMENT ===")
+                print(f"Cat {id(self)} received task at {task.position}")
+                print(f"Task type: {task.type}")
+                if self.task_handler.start_task(task):
+                    print(f"Task started successfully, switching to WORKING")
+                    self._switch_state(EntityState.WORKING)
+                    return
+                else:
+                    print(f"Failed to start task, returning task to pool")
+                    self.game_state.task_system.return_task(task)
 
         # Normal wandering behavior
         self.wander_timer -= dt
@@ -86,17 +102,44 @@ class Cat(Entity):
     def _update_working(self, dt):
         """Handle working state"""
         if not self.task_handler.has_task():
+            print(f"Cat {id(self)} has no task, switching to wandering")
             self._switch_state(EntityState.WANDERING)
             return
 
-        # If we're not at the task location, move there
         task_pos = self.task_handler.get_task_position()
-        if task_pos and self.movement_handler.has_arrived:
+        if not task_pos:
+            print(f"Cat {id(self)} has task but no position")
+            return
+        
+        current_tile = (
+            int(self.position.x // TILE_SIZE),
+            int(self.position.y // TILE_SIZE)
+        )
+        
+        print(f"\n=== CAT WORKING UPDATE ===")
+        print(f"Cat {id(self)} at {current_tile}")
+        print(f"Task at {task_pos}")
+        
+        # If we're close enough, work on the task
+        dx = abs(task_pos[0] - current_tile[0])
+        dy = abs(task_pos[1] - current_tile[1])
+        
+        if dx <= 1 and dy <= 1:
+            print(f"Cat {id(self)} within range, working on wire")
+            self.movement_handler.stop()  # Only stop when we're ready to work
+            self.task_handler.update(dt)
+            return
+        
+        # Move to task if not already moving
+        if not self.movement_handler.moving:
             target_pos = pygame.math.Vector2(
-                (task_pos[0] + 0.5) * TILE_SIZE,
-                (task_pos[1] + 0.5) * TILE_SIZE
+                task_pos[0] * TILE_SIZE + TILE_SIZE/2,
+                task_pos[1] * TILE_SIZE + TILE_SIZE/2
             )
-            self.movement_handler.start_path_to_position(target_pos)
+            print(f"Cat {id(self)} starting movement to wire at {task_pos}")
+            self.movement_handler.allow_movement()  # Allow movement before pathfinding
+            success = self.movement_handler.start_path_to_position(target_pos)
+            print(f"Movement start success: {success}")
 
     def _update_seeking_food(self, dt):
         """Handle food seeking state"""
@@ -130,9 +173,8 @@ class Cat(Entity):
         if new_state == self.state:
             return
             
-        print(f"\nCat {id(self)} switching state:")
-        print(f"From: {self.state}")
-        print(f"To: {new_state}")
+        print(f"\n=== STATE CHANGE ===")
+        print(f"Cat {id(self)} switching from {self.state} to {new_state}")
         
         self.state = new_state
 

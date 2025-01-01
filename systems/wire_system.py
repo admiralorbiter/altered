@@ -1,6 +1,6 @@
 import pygame
 from entities.base_entity import Entity
-from utils.types import EntityState
+from utils.types import TaskType, Task
 from utils.config import *
 from core.tiles import ElectricalComponent
 from dataclasses import dataclass
@@ -16,8 +16,12 @@ class Task:
     type: TaskType
     position: Tuple[int, int]
     assigned_to: Optional[Entity] = None
-    priority: int = 1
+    priority: int = 1  # 0 = low, 1 = normal, 2 = high, 3 = critical
     completed: bool = False
+    
+    def should_interrupt(self) -> bool:
+        """Whether this task should interrupt current activities"""
+        return self.priority >= 2  # High and Critical tasks interrupt
 
 
 class WireSystem:
@@ -107,7 +111,7 @@ class WireSystem:
         print(f"Path length: {len(self.current_wire_path)}")
         
         created_tasks = []
-        for pos in self.current_wire_path:
+        for i, pos in enumerate(self.current_wire_path):
             component = ElectricalComponent(
                 type='wire',
                 under_construction=True
@@ -115,36 +119,36 @@ class WireSystem:
             
             success = self.game_state.current_level.tilemap.set_electrical(pos[0], pos[1], component)
             if success:
+                # First and last wires in path are higher priority
+                priority = 2 if i == 0 or i == len(self.current_wire_path) - 1 else 1
+                
                 task = self.game_state.task_system.add_task(
                     TaskType.WIRE_CONSTRUCTION,
                     pos,
-                    priority=1
+                    priority=priority
                 )
                 created_tasks.append(task)
-                print(f"Created wire task at: {pos}")
+                print(f"Created wire task at: {pos} (Priority: {priority})")
         
         print(f"Total tasks created: {len(created_tasks)}")
         return created_tasks
 
     def complete_wire_construction(self, position):
-        """Called when a cat completes wire construction at a position"""
-        print("\n=== WIRE CONSTRUCTION DEBUG ===")
-        print(f"Attempting to complete wire at: {position}")
+        """Complete wire construction at position"""
+        print(f"\n=== COMPLETING WIRE AT {position} ===")
         
-        # Get the component from tilemap - our single source of truth
         tilemap = self.game_state.current_level.tilemap
         component = tilemap.electrical_components.get(position)
         
         if not component:
-            print(f"No component found at {position}")
-            return False
-            
-        if not component.under_construction:
-            print(f"Wire at {position} is already completed")
+            print("No wire component found")
             return False
         
-        # Update the component's state
-        print(f"Completing wire at {position}")
+        if not component.under_construction:
+            print("Wire already completed")
+            return False
+        
+        print("Updating wire state")
         component.under_construction = False
         return True
 

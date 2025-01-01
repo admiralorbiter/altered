@@ -25,80 +25,82 @@ class TaskHandler:
     def _update_wire_construction(self, dt: float) -> None:
         """Handle wire construction task updates"""
         if not self.wire_task:
+            print("No wire task to update")
             return
 
-        # Get current tile position
+        wire_pos = self.wire_task[0]
         current_tile = (
             int(self.entity.position.x // TILE_SIZE),
             int(self.entity.position.y // TILE_SIZE)
         )
-        wire_pos = self.wire_task[0]
-
-        print(f"\n=== WIRE TASK UPDATE ===")
-        print(f"Entity at {current_tile}")
-        print(f"Target wire at {wire_pos}")
         
-        # Check if we're close enough to build
-        if (abs(wire_pos[0] - current_tile[0]) <= 1 and 
-            abs(wire_pos[1] - current_tile[1]) <= 1):
-            
+        print(f"\n=== WIRE CONSTRUCTION UPDATE ===")
+        print(f"Entity {id(self.entity)} at {current_tile}")
+        print(f"Target wire at {wire_pos}")
+        print(f"Building: {self.is_building}, Timer: {self.build_timer:.1f}/{self.build_time_required}")
+        
+        # Simple distance check
+        dx = abs(wire_pos[0] - current_tile[0])
+        dy = abs(wire_pos[1] - current_tile[1])
+        
+        if dx <= 1 and dy <= 1:  # We're adjacent to wire
             if not self.is_building:
-                print("Starting wire construction")
+                print("Starting construction")
                 self.is_building = True
                 self.build_timer = 0
-                return
             
-            # Update building progress
             self.build_timer += dt
-            print(f"Building progress: {self.build_timer}/{self.build_time_required}")
-            
             if self.build_timer >= self.build_time_required:
-                print("Wire construction complete")
-                self.complete_current_task()
+                print("Construction complete")
+                if self.entity.game_state.wire_system.complete_wire_construction(wire_pos):
+                    print("Wire updated successfully")
+                    self.complete_current_task()
+                    self.is_building = False
+                    self.build_timer = 0
+                    return
+                else:
+                    print("Failed to update wire")
+        else:
+            print(f"Too far to build: dx={dx}, dy={dy}")
+            # Reset building state if we move away
+            if self.is_building:
+                print("Resetting building state")
+                self.is_building = False
+                self.build_timer = 0
 
     def start_task(self, task: Task) -> bool:
         """Start a new task"""
-        if task.type == TaskType.WIRE_CONSTRUCTION:
-            return self.set_wire_task(task.position, 'wire')
-        return False
-
-    def set_wire_task(self, wire_pos: Tuple[int, int], wire_type: str) -> bool:
-        """Set up a wire construction task"""
-        print(f"\n=== WIRE TASK ASSIGNMENT ===")
-        print(f"Entity {id(self.entity)} receiving wire task:")
-        print(f"Position: {wire_pos}")
-        print(f"Wire type: {wire_type}")
+        if not self.validate_wire_task(task):
+            return False
         
-        # Get the actual Task object from the task system
-        task = self.entity.game_state.task_system.get_available_task(self.entity)
-        if not task or task.type != TaskType.WIRE_CONSTRUCTION:
-            return False
-            
-        if task.position != wire_pos:
-            print(f"Task position {task.position} doesn't match wire position {wire_pos}")
-            return False
-            
-        print(f"Entity got matching task: {task.type.value} @ {task.position}")
+        print(f"\n=== TASK START ===")
+        print(f"Entity {id(self.entity)} starting task at {task.position}")
+        
         self.current_task = task
-        self.wire_task = (wire_pos, wire_type)
+        self.entity.movement_handler.allow_movement()  # Allow movement for new task
+        return True
+
+    def set_wire_task(self, position: Tuple[int, int], wire_type: str) -> bool:
+        """Set up wire task data"""
+        print(f"Setting up wire task at {position}")
+        self.wire_task = (position, wire_type)
         return True
 
     def complete_current_task(self) -> bool:
         """Complete the current task"""
         if not self.current_task:
             return False
-            
-        print(f"\n=== Entity {id(self.entity)} completing task ===")
-        print(f"Task position: {self.current_task.position}")
         
-        # Complete the task in the task system
+        print(f"\n=== TASK COMPLETE ===")
+        print(f"Entity {id(self.entity)} completed task at {self.current_task.position}")
+        
         result = self.entity.game_state.task_system.complete_task(self.current_task)
         
-        # Reset all task-related states
         self.is_building = False
         self.build_timer = 0
         self.wire_task = None
         self.current_task = None
+        self.entity.movement_handler.stop()  # Stop movement after task complete
         
         return result
 
@@ -108,9 +110,23 @@ class TaskHandler:
 
     def get_task_position(self) -> Optional[Tuple[int, int]]:
         """Get the position of the current task"""
-        if self.wire_task:
-            return self.wire_task[0]
-        return None
+        if not self.current_task:
+            print("No current task")
+            return None
+        
+        if not self.wire_task:
+            print("No wire task data")
+            return None
+        
+        print(f"\n=== TASK POSITION CHECK ===")
+        print(f"Current task position: {self.current_task.position}")
+        print(f"Wire task position: {self.wire_task[0]}")
+        
+        # These should match
+        if self.current_task.position != self.wire_task[0]:
+            print("WARNING: Task position mismatch!")
+        
+        return self.wire_task[0]
 
     def stop(self) -> None:
         """Stop current task"""
@@ -131,3 +147,25 @@ class TaskHandler:
             'position': self.wire_task[0],
             'queue': []  # Wire queue implementation can be added later if needed
         } 
+
+    def validate_wire_task(self, task: Task) -> bool:
+        """Validate and set up a wire construction task"""
+        print(f"Validating task: {task.type} == {TaskType.WIRE_CONSTRUCTION}?")
+        print(f"Type comparison: {type(task.type)} vs {type(TaskType.WIRE_CONSTRUCTION)}")
+        print(f"Values: {task.type.value} vs {TaskType.WIRE_CONSTRUCTION.value}")
+        
+        # Compare the enum values directly
+        if task.type.value != TaskType.WIRE_CONSTRUCTION.value:
+            print("Not a wire construction task")
+            return False
+        
+        print(f"\n=== WIRE TASK VALIDATION ===")
+        print(f"Entity {id(self.entity)} validating wire task:")
+        print(f"Position: {task.position}")
+        
+        # Set up the wire task data
+        if not self.set_wire_task(task.position, 'wire'):
+            print("Failed to set wire task")
+            return False
+        
+        return True 
