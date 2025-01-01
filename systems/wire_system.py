@@ -1,6 +1,6 @@
 import pygame
 from entities.base_entity import Entity
-from entities.cat import CatState
+from utils.types import EntityState
 from utils.config import *
 from core.tiles import ElectricalComponent
 from dataclasses import dataclass
@@ -103,28 +103,28 @@ class WireSystem:
 
     def _place_wire_path(self):
         """Place a path of wires and create tasks for their construction"""
-        print("\n=== Starting Wire Path Placement ===")
+        print("\n=== Wire Path Creation ===")
         print(f"Path length: {len(self.current_wire_path)}")
         
+        created_tasks = []
         for pos in self.current_wire_path:
-            # Create wire component marked as under construction
             component = ElectricalComponent(
                 type='wire',
                 under_construction=True
             )
             
-            # Add the component to the tilemap - this is our single source of truth
             success = self.game_state.current_level.tilemap.set_electrical(pos[0], pos[1], component)
             if success:
-                # Create the task
                 task = self.game_state.task_system.add_task(
                     TaskType.WIRE_CONSTRUCTION,
                     pos,
                     priority=1
                 )
+                created_tasks.append(task)
                 print(f"Created wire task at: {pos}")
-            else:
-                print(f"Failed to place wire at {pos}")
+        
+        print(f"Total tasks created: {len(created_tasks)}")
+        return created_tasks
 
     def complete_wire_construction(self, position):
         """Called when a cat completes wire construction at a position"""

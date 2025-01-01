@@ -93,23 +93,6 @@ class TestLevel(BaseLevel):
         
         # Update cat wandering behavior
         for cat in self.cats:
-            if not cat.moving and random.random() < 0.02:
-                while True:
-                    dx = random.randint(-3, 3)
-                    dy = random.randint(-3, 3)
-                    target_x = int(cat.position.x // TILE_SIZE) + dx
-                    target_y = int(cat.position.y // TILE_SIZE) + dy
-                    
-                    if self.tilemap.is_walkable(target_x, target_y):
-                        current_tile = (int(cat.position.x // TILE_SIZE), 
-                                      int(cat.position.y // TILE_SIZE))
-                        cat.path = find_path(current_tile, (target_x, target_y), self.tilemap)
-                        if cat.path:
-                            cat.current_waypoint = 1 if len(cat.path) > 1 else 0
-                            next_tile = cat.path[cat.current_waypoint]
-                            cat.target_position = pygame.math.Vector2(
-                                (next_tile[0] + 0.5) * TILE_SIZE,
-                                (next_tile[1] + 0.5) * TILE_SIZE
-                            )
-                            cat.moving = True
-                        break 
+            if (not cat.movement_handler.moving and 
+                random.random() < 0.02):  # 2% chance to start moving each frame
+                cat.movement_handler.start_random_movement() 

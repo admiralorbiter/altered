@@ -151,6 +151,12 @@ class HUD(UIElement):
             if success:
                 self.capture_button.visible = False
                 self.release_button.visible = True
+                
+                # Stop any current tasks when captured
+                if hasattr(nearest_target, 'task_handler'):
+                    nearest_target.task_handler.clear_tasks()
+                if hasattr(nearest_target, 'movement_handler'):
+                    nearest_target.movement_handler.stop_movement()
         else:
             print("No valid target in range")  # Debug print
             

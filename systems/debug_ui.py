@@ -1,5 +1,7 @@
 import pygame
+from systems.wire_system import TaskType
 from utils.config import *
+from utils.types import EntityState
 
 class DebugUI:
     def __init__(self, game_state):
@@ -51,29 +53,34 @@ class DebugUI:
             state_str += f"Pos=({int(cat.position.x // TILE_SIZE)}, {int(cat.position.y // TILE_SIZE)})"
             
             # Movement and target info
-            if cat.moving:
+            if cat.movement_handler.moving:
                 state_str += " [Moving]"
-                if cat.target_position:
-                    target_x = int(cat.target_position.x // TILE_SIZE)
-                    target_y = int(cat.target_position.y // TILE_SIZE)
+                if cat.movement_handler.target_position:
+                    target_x = int(cat.movement_handler.target_position.x // TILE_SIZE)
+                    target_y = int(cat.movement_handler.target_position.y // TILE_SIZE)
                     state_str += f" -> ({target_x}, {target_y})"
             
             # Task details
-            if cat.current_task:
-                state_str += f" [Task: {cat.current_task.type.value} @ {cat.current_task.position}]"
-            if cat.wire_task:
-                state_str += f" [Wire: {cat.wire_task[0]}]"
-            if cat.wire_task_queue:
-                state_str += f" [Queue: {[pos for pos, _ in cat.wire_task_queue]}]"
+            if cat.task_handler.has_task():
+                current_task = cat.task_handler.get_current_task()
+                state_str += f" [Task: {current_task.type.value} @ {current_task.position}]"
+                
+                # Get wire task info from task handler
+                if current_task.type == TaskType.WIRE_CONSTRUCTION:
+                    wire_info = cat.task_handler.get_wire_task_info()
+                    if wire_info:
+                        state_str += f" [Wire: {wire_info['position']}]"
+                        if wire_info.get('queue'):
+                            state_str += f" [Queue: {[pos for pos, _ in wire_info['queue']]}]"
             
             # Status flags
             flags = []
             if cat.is_dead:
                 flags.append("DEAD")
-            if cat.seeking_food:
+            if cat.state == EntityState.SEEKING_FOOD:
                 flags.append("HUNGRY")
-            if cat.path:
-                flags.append(f"Path:{len(cat.path)}")
+            if cat.movement_handler.path:
+                flags.append(f"Path:{len(cat.movement_handler.path)}")
             if flags:
                 state_str += f" [{' '.join(flags)}]"
             
