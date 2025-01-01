@@ -17,7 +17,6 @@ class MovementHandler:
     def start_path_to_position(self, target_pos):
         """Start pathfinding to a target position"""
         if self.force_stop:
-            print(f"Movement stopped due to force_stop flag")
             return False
             
         current_tile = (
@@ -29,11 +28,6 @@ class MovementHandler:
             int(target_pos.y // TILE_SIZE)
         )
         
-        print(f"\n=== PATHFINDING START ===")
-        print(f"Entity at {current_tile} moving to {target_tile}")
-        print(f"Current pixel pos: {self.entity.position}")
-        print(f"Target pixel pos: {target_pos}")
-        
         path = find_path(
             current_tile,
             target_tile,
@@ -43,7 +37,6 @@ class MovementHandler:
         )
         
         if path:
-            print(f"Path found: {path}")
             self.path = path
             self.current_waypoint = 1 if len(path) > 1 else 0
             self.target_position = target_pos
@@ -51,7 +44,6 @@ class MovementHandler:
             self.force_stop = False  # Make sure we're not blocked
             return True
         else:
-            print("No path found!")
             return False
 
     def start_random_movement(self, range_x: int = 5, range_y: int = 5) -> bool:
@@ -85,14 +77,7 @@ class MovementHandler:
         # Calculate direction and distance to target
         direction = self.target_position - self.entity.position
         distance = direction.length()
-        
-        print(f"\n=== MOVEMENT UPDATE ===")
-        print(f"Current pos: {self.entity.position}")
-        print(f"Target pos: {self.target_position}")
-        print(f"Distance: {distance}")
-        print(f"Moving: {self.moving}")
-        print(f"Force stop: {self.force_stop}")
-        
+ 
         if distance < self.arrival_threshold:
             # Snap to target position when very close
             self.entity.position = pygame.math.Vector2(self.target_position)
@@ -105,9 +90,7 @@ class MovementHandler:
                     (next_tile[0] + 0.5) * TILE_SIZE,
                     (next_tile[1] + 0.5) * TILE_SIZE
                 )
-                print(f"Moving to next waypoint: {next_tile}")
             else:
-                print("Reached final destination")
                 self.moving = False
                 self.path = None
                 self.target_position = None
@@ -121,7 +104,6 @@ class MovementHandler:
             
             # Update position
             self.entity.position += movement
-            print(f"Moved by {movement}")
 
     @property
     def has_arrived(self) -> bool:

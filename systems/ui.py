@@ -157,8 +157,6 @@ class HUD(UIElement):
                     nearest_target.task_handler.clear_tasks()
                 if hasattr(nearest_target, 'movement_handler'):
                     nearest_target.movement_handler.stop_movement()
-        else:
-            print("No valid target in range")  # Debug print
             
     def release_captured(self):
         """Handle release button press"""
@@ -198,7 +196,6 @@ class HUD(UIElement):
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
             if self.capture_button.visible and self.capture_button.rect.collidepoint(mouse_pos):
-                print("Capture button clicked")  # Debug print
                 self.attempt_capture()
         super().handle_event(event)
 

@@ -49,22 +49,17 @@ def is_tile_occupied(position: Tuple[int, int], game_state, ignore_entity=None, 
 
 def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=None, entity=None) -> List[Tuple[int, int]]:
     """A* pathfinding implementation with entity collision checking"""
-    print(f"\n=== PATHFINDING DEBUG ===")
-    print(f"Finding path from {start} to {end}")
     
     # First verify the end position is valid
     if not tilemap.is_walkable(end[0], end[1]):
-        print(f"End position {end} is not walkable!")
         return []
         
     if game_state and is_tile_occupied(end, game_state, entity):
-        print(f"End position {end} is occupied!")
         # Try adjacent tiles if target is occupied
         for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
             alt_end = (end[0] + dx, end[1] + dy)
             if (tilemap.is_walkable(*alt_end) and 
                 not is_tile_occupied(alt_end, game_state, entity)):
-                print(f"Found alternative end position: {alt_end}")
                 end = alt_end
                 break
         else:

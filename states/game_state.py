@@ -155,13 +155,6 @@ class GameState(State):
 
     def update(self, dt):
         if self.current_level:
-            # Debug electrical components state
-            print("\n=== GameState Update ===")
-            print(f"Wire Mode: {self.wire_mode}")
-            print(f"Total electrical components: {len(self.current_level.tilemap.electrical_components)}")
-            for pos, comp in self.current_level.tilemap.electrical_components.items():
-                if comp.under_construction:
-                    print(f"Wire at {pos}: under_construction={comp.under_construction}")
             
             self.capture_system.update(dt)
             self.current_level.update(dt)

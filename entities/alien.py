@@ -83,7 +83,6 @@ class Alien(Entity):
                     # Check if we were placing a wire
                     if hasattr(self, 'wire_task') and self.wire_task:
                         wire_pos, wire_type = self.wire_task
-                        print(f"Alien placing wire at {wire_pos}")
                         self.game_state.current_level.tilemap.set_electrical(wire_pos[0], wire_pos[1], wire_type)
                         self.wire_task = None
                     self.deselect()

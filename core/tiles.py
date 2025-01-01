@@ -9,8 +9,6 @@ class ElectricalComponent:
     connected_tiles: List[Tuple[int, int]] = field(default_factory=list)
     under_construction: bool = True  # This is the default, but we explicitly set False in wire_system.py
     
-    def __post_init__(self):
-        print(f"Created new ElectricalComponent: type={self.type}, under_construction={self.under_construction}")
 
 @dataclass
 class Tile:

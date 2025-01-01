@@ -97,7 +97,6 @@ class Cat(Entity):
     def _update_working(self, dt):
         """Handle working state"""
         if not self.task_handler.has_task():
-            print(f"Cat {id(self)} has no task, switching to wandering")
             self.movement_handler.stop()
             self._switch_state(EntityState.WANDERING)
             self.wander_timer = random.uniform(3.0, 8.0)
@@ -105,7 +104,6 @@ class Cat(Entity):
 
         task_pos = self.task_handler.get_task_position()
         if not task_pos:
-            print(f"Cat {id(self)} has task but no position, switching to wandering")
             self.movement_handler.stop()
             self._switch_state(EntityState.WANDERING)
             self.wander_timer = random.uniform(3.0, 8.0)
@@ -166,8 +164,6 @@ class Cat(Entity):
 
     def _switch_state(self, new_state: EntityState) -> None:
         """Switch to a new state"""
-        print(f"\n=== STATE CHANGE ===")
-        print(f"Cat {id(self)} switching from {self.state} to {new_state}")
         
         # Clear any existing movement restrictions when entering wandering state
         if new_state == EntityState.WANDERING:
@@ -178,7 +174,6 @@ class Cat(Entity):
 
     def render(self, surface):
         """Render the cat with simple 2D art"""
-        print(f"Rendering cat {id(self)}")  # Debug print
         # Get zoom level from game state
         zoom_level = self.game_state.zoom_level if hasattr(self.game_state, 'zoom_level') else 1.0
         
@@ -273,8 +268,6 @@ class Cat(Entity):
         """Handle taking damage"""
         if self.is_dead:
             return
-            
-        print(f"Cat {id(self)} taking {amount} damage")
         self.health = max(0, self.health - amount)
         
         if self.health <= 0:
@@ -284,8 +277,6 @@ class Cat(Entity):
         """Handle death"""
         if self.is_dead:
             return
-            
-        print(f"Cat {id(self)} died")
         self.is_dead = True
         self.active = False
         

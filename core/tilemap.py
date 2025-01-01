@@ -14,8 +14,6 @@ class TileMap:
         # Electrical layer
         self.electrical_layer = [[None for _ in range(width)] for _ in range(height)]
         self.electrical_components = {}  # (x,y) -> ElectricalComponent
-        print("=== Created new TileMap ===")
-        print(f"Size: {width}x{height}")
     
     def set_tile(self, x, y, tile_name: str):
         """Set a tile using its name"""
@@ -35,14 +33,9 @@ class TileMap:
         
     def set_electrical(self, x, y, component):
         """Store an electrical component at the given position"""
-        print(f"\n=== ELECTRICAL COMPONENT PLACEMENT ===")
-        print(f"Position: ({x}, {y})")
-        print(f"Component type: {component.type}")
-        print(f"Under construction: {component.under_construction}")
         
         # Bounds check
         if not (0 <= x < self.width and 0 <= y < self.height):
-            print(f"Position out of bounds!")
             return False
         
         # Store in both data structures
@@ -52,8 +45,6 @@ class TileMap:
         
         # Verify storage
         stored = self.electrical_components.get(key)
-        print(f"Stored successfully: {stored is not None}")
-        print(f"Total components: {len(self.electrical_components)}")
         return True
 
     def get_electrical(self, x, y):
@@ -61,8 +52,6 @@ class TileMap:
         if 0 <= x < self.width and 0 <= y < self.height:
             key = (x, y)
             comp = self.electrical_components.get(key)
-            if comp:
-                print(f"Retrieved component at ({x}, {y}): {comp}")
             return comp
         return None
 

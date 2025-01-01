@@ -38,14 +38,12 @@ class WireSystem:
             return False
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            print("DEBUG: Starting wire placement")
             self.is_placing_wire = True
             self._update_ghost_position(event.pos)
             self.start_position = self.ghost_position
             return True
             
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            print(f"DEBUG: Ending wire placement. Start: {self.start_position}, End: {self.ghost_position}")
             if self.start_position and self.ghost_position:
                 positions = self._get_line_positions(
                     self.start_position[0], self.start_position[1],
@@ -55,7 +53,6 @@ class WireSystem:
                     pos for pos in positions 
                     if self._is_valid_wire_position(pos[0], pos[1])
                 ]
-                print(f"DEBUG: Wire path: {self.current_wire_path}")
                 self._place_wire_path()
             
             self.is_placing_wire = False
@@ -107,8 +104,6 @@ class WireSystem:
 
     def _place_wire_path(self):
         """Place a path of wires and create tasks for their construction"""
-        print("\n=== Wire Path Creation ===")
-        print(f"Path length: {len(self.current_wire_path)}")
         
         created_tasks = []
         for i, pos in enumerate(self.current_wire_path):
@@ -128,27 +123,20 @@ class WireSystem:
                     priority=priority
                 )
                 created_tasks.append(task)
-                print(f"Created wire task at: {pos} (Priority: {priority})")
-        
-        print(f"Total tasks created: {len(created_tasks)}")
         return created_tasks
 
     def complete_wire_construction(self, position):
         """Complete wire construction at position"""
-        print(f"\n=== COMPLETING WIRE AT {position} ===")
         
         tilemap = self.game_state.current_level.tilemap
         component = tilemap.electrical_components.get(position)
         
         if not component:
-            print("No wire component found")
             return False
         
         if not component.under_construction:
-            print("Wire already completed")
             return False
         
-        print("Updating wire state")
         component.under_construction = False
         return True
 

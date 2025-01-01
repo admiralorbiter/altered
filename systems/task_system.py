@@ -50,22 +50,16 @@ class TaskSystem:
 
     def complete_task(self, task):
         """Complete a task"""
-        print(f"\n=== COMPLETING TASK ===")
-        print(f"Task at {task.position}")
         
         if task in self.assigned_tasks:
-            print("Removing task from assigned tasks")
             self.assigned_tasks.remove(task)
             # Clear the entity's reference to this task
             if task.assigned_to:
                 task.assigned_to.task_handler.current_task = None
                 task.assigned_to.task_handler.wire_task = None
-        else:
-            print("Task not found in assigned tasks!")
         
         task.completed = True
         task.assigned_to = None
-        print("Task marked as completed")
         return True
 
     def return_task(self, task):
@@ -74,7 +68,6 @@ class TaskSystem:
             self.assigned_tasks.remove(task)
             task.assigned_to = None
             self.available_tasks.append(task)
-            print(f"Task at {task.position} returned to available pool") 
 
     def get_highest_priority_task(self, entity) -> Optional[Task]:
         """Get the highest priority available task"""
