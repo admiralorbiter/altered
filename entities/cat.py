@@ -1,5 +1,6 @@
 import pygame
 import random
+from entities.items.food import Food
 from utils.types import EntityState, TaskType
 from .base_entity import Entity
 from utils.config import *
@@ -21,7 +22,7 @@ class Cat(Entity):
         self.morale = 100
         
         # Hunger system
-        self.hunger = 100  # Start full
+        self.hunger = 25  # Start full
         self.max_hunger = 100
         self.hunger_rate = 2  # Lose 2 hunger per second
         self.critical_hunger = 10  # Percentage when cat starts seeking food
@@ -137,8 +138,39 @@ class Cat(Entity):
 
     def _update_seeking_food(self, dt):
         """Handle food seeking state"""
-        # TODO: Implement food seeking behavior
-        self._switch_state(EntityState.WANDERING)
+        # Find nearest food item
+        nearest_food = None
+        min_distance = float('inf')
+        
+        # Look through all items in the level
+        for item in self.game_state.current_level.entity_manager.items:
+            if isinstance(item, Food):
+                distance = (item.position - self.position).length()
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_food = item
+        
+        if nearest_food:
+            # If we're close enough to the food, consume it
+            if min_distance < TILE_SIZE:
+                if nearest_food.use(self):
+                    # Remove the food item after consumption
+                    self.game_state.current_level.entity_manager.remove_item(nearest_food)
+                    self._switch_state(EntityState.WANDERING)
+                    return
+            
+            # If not close enough, move towards the food
+            if not self.movement_handler.moving:
+                self.movement_handler.allow_movement()
+                success = self.movement_handler.start_path_to_position(nearest_food.position)
+                if not success:
+                    # If we can't path to the food, go back to wandering
+                    self._switch_state(EntityState.WANDERING)
+                    self.wander_timer = random.uniform(3.0, 8.0)
+        else:
+            # If no food is found, go back to wandering
+            self._switch_state(EntityState.WANDERING)
+            self.wander_timer = random.uniform(3.0, 8.0)
 
     def _update_idle(self, dt):
         """Handle idle state"""
@@ -264,6 +296,20 @@ class Cat(Entity):
                              self.position.y - base_size * 2,
                              health_width, max(2, int(zoom_level * 2))))
 
+        # After drawing health bar, add hunger bar
+        if self.hunger < self.max_hunger:
+            hunger_width = (base_size * 2 * self.hunger) / self.max_hunger
+            # Draw hunger bar background (red)
+            pygame.draw.rect(surface, (139, 69, 19),  # Brown color for hunger
+                            (self.position.x - base_size,
+                             self.position.y - base_size * 1.7,  # Position it below health bar
+                             base_size * 2, max(2, int(zoom_level * 2))))
+            # Draw current hunger level (green)
+            pygame.draw.rect(surface, (255, 198, 0),  # Yellow/gold color for food
+                            (self.position.x - base_size,
+                             self.position.y - base_size * 1.7,
+                             hunger_width, max(2, int(zoom_level * 2))))
+
     def take_damage(self, amount):
         """Handle taking damage"""
         if self.is_dead:
@@ -379,4 +425,18 @@ class Cat(Entity):
             pygame.draw.rect(surface, (0, 255, 0),
                             (screen_x - base_size,
                              screen_y - base_size * 2,
-                             health_width, max(2, int(zoom_level * 2)))) 
+                             health_width, max(2, int(zoom_level * 2))))
+
+        # After drawing health bar, add hunger bar
+        if self.hunger < self.max_hunger:
+            hunger_width = (base_size * 2 * self.hunger) / self.max_hunger
+            # Draw hunger bar background (red)
+            pygame.draw.rect(surface, (139, 69, 19),  # Brown color for hunger
+                            (screen_x - base_size,
+                             screen_y - base_size * 1.7,  # Position it below health bar
+                             base_size * 2, max(2, int(zoom_level * 2))))
+            # Draw current hunger level (green)
+            pygame.draw.rect(surface, (255, 198, 0),  # Yellow/gold color for food
+                            (screen_x - base_size,
+                             screen_y - base_size * 1.7,
+                             hunger_width, max(2, int(zoom_level * 2)))) 
