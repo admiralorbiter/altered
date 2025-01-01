@@ -5,8 +5,11 @@ from entities.enemies.base_enemy import BaseEnemy
 from systems.capture_system import CaptureState
 from utils.config import *
 
+# Base class for all UI elements providing core functionality for visibility, 
+# event handling, and parent-child relationships
 class UIElement:
     def __init__(self, x, y, width, height):
+        """Initialize a UI element with position and dimensions"""
         self.rect = pygame.Rect(x, y, width, height)
         self.visible = True
         self.active = True
@@ -14,15 +17,19 @@ class UIElement:
         self.children = []
 
     def add_child(self, child):
+        """Add a child UI element and set its parent reference"""
         child.parent = self
         self.children.append(child)
 
     def remove_child(self, child):
+        """Remove a child UI element and clear its parent reference"""
         if child in self.children:
             child.parent = None
             self.children.remove(child)
 
     def handle_event(self, event):
+        """Process pygame events, propagating them to children in reverse order
+        Returns True if the event was handled"""
         if not self.active:
             return False
         
@@ -32,6 +39,7 @@ class UIElement:
         return False
 
     def update(self, dt):
+        """Update the element and its children with the given delta time"""
         if not self.active:
             return
         
@@ -39,14 +47,17 @@ class UIElement:
             child.update(dt)
 
     def draw(self, surface):
+        """Draw the element and its children to the given surface"""
         if not self.visible:
             return
         
         for child in self.children:
             child.draw(surface)
 
+# Text display component that renders a string with specified font and color
 class Label(UIElement):
     def __init__(self, x, y, text, font_size=32, color=WHITE):
+        """Initialize a text label with given position, content, and style"""
         self.font = pygame.font.Font(None, font_size)
         self.text = text
         self.color = color
@@ -54,6 +65,7 @@ class Label(UIElement):
         super().__init__(x, y, text_surface.get_width(), text_surface.get_height())
 
     def set_text(self, text):
+        """Update the label's text and recalculate its dimensions"""
         self.text = text
         text_surface = self.font.render(text, True, self.color)
         self.rect.width = text_surface.get_width()
@@ -66,8 +78,10 @@ class Label(UIElement):
         surface.blit(text_surface, self.rect)
         super().draw(surface)
 
+# Interactive button component with hover effects and click callback
 class Button(UIElement):
     def __init__(self, x, y, width, height, text, callback=None):
+        """Initialize a button with given dimensions, text, and click handler"""
         super().__init__(x, y, width, height)
         self.text = text
         self.callback = callback
@@ -103,8 +117,10 @@ class Button(UIElement):
         text_rect = text_surface.get_rect(center=self.rect.center)
         surface.blit(text_surface, text_rect)
 
+# Heads-up display showing game status and control buttons
 class HUD(UIElement):
     def __init__(self, game_state):
+        """Initialize the HUD with health, morale, and capture controls"""
         super().__init__(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         self.game_state = game_state
         
@@ -126,7 +142,7 @@ class HUD(UIElement):
         self.add_child(self.release_button)
         
     def attempt_capture(self):
-        """Handle capture button press"""
+        """Try to capture the nearest valid target within range of selected alien"""
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
                              if alien.selected), None)
         if not selected_alien:
@@ -159,7 +175,7 @@ class HUD(UIElement):
                     nearest_target.movement_handler.stop_movement()
             
     def release_captured(self):
-        """Handle release button press"""
+        """Release the currently captured target from the selected alien"""
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
                              if alien.selected), None)
         if selected_alien and selected_alien.carrying_target:
@@ -199,13 +215,16 @@ class HUD(UIElement):
                 self.attempt_capture()
         super().handle_event(event)
 
+# UI component for handling wire placement mode and preview
 class WireUI(UIElement):
     def __init__(self, x, y, width, height, game_state):
+        """Initialize wire placement interface"""
         super().__init__(x, y, width, height)
         self.game_state = game_state
         self.selected_component = 'wire'
 
     def handle_event(self, event):
+        """Handle mouse movement for wire ghost preview"""
         if not self.game_state.wire_mode:
             return False
             
@@ -219,6 +238,7 @@ class WireUI(UIElement):
         return super().handle_event(event)
 
     def draw(self, surface):
+        """Draw the ghost wire preview when in wire placement mode"""
         # Only draw ghost wire when in wire mode
         if not self.game_state.wire_mode:
             return
@@ -267,8 +287,10 @@ class WireUI(UIElement):
             
             surface.blit(ghost_surface, (screen_x, screen_y))
 
+# Control panel for game mode toggles (capture, stealth, wire placement)
 class CaptureUI(UIElement):
     def __init__(self, game_state):
+        """Initialize mode toggle buttons at the bottom of the screen"""
         # Position at bottom of screen
         super().__init__(10, WINDOW_HEIGHT - 75, 420, 30)  # Increased width for 3 buttons
         self.game_state = game_state
@@ -292,7 +314,7 @@ class CaptureUI(UIElement):
         self.add_child(self.wire_mode_btn)
     
     def toggle_wire_mode(self):
-        """Toggle wire placement mode"""
+        """Toggle wire placement mode and disable other modes"""
         self.game_state.wire_mode = not self.game_state.wire_mode
         self.wire_mode_btn.text = f"Place Wire: {'ON' if self.game_state.wire_mode else 'OFF'}"
         
@@ -304,6 +326,7 @@ class CaptureUI(UIElement):
             self.stealth_mode_btn.text = "Stealth: OFF"
     
     def toggle_capture_mode(self):
+        """Toggle capture mode and disable wire mode"""
         system = self.game_state.capture_system
         system.capture_mode = not system.capture_mode
         self.capture_mode_btn.text = f"Capture Mode: {'ON' if system.capture_mode else 'OFF'}"
@@ -314,6 +337,7 @@ class CaptureUI(UIElement):
             self.wire_mode_btn.text = "Place Wire: OFF"
     
     def toggle_stealth_mode(self):
+        """Toggle stealth mode for capture operations"""
         system = self.game_state.capture_system
         system.stealth_mode = not system.stealth_mode
         self.stealth_mode_btn.text = f"Stealth: {'ON' if system.stealth_mode else 'OFF'}" 

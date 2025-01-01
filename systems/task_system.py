@@ -5,33 +5,62 @@ from entities.base_entity import Entity
 from utils.config import TILE_SIZE
 
 class TaskSystem:
+    """
+    Manages the creation, assignment, and completion of tasks within the game.
+    Handles task prioritization and assignment to entities.
+    """
     def __init__(self, game_state):
+        """
+        Initialize the task system.
+        
+        Args:
+            game_state: Reference to the main game state
+        """
         self.game_state = game_state
-        self.available_tasks = []
-        self.assigned_tasks = []
+        self.available_tasks = []  # Tasks that haven't been assigned to any entity
+        self.assigned_tasks = []   # Tasks currently being worked on by entities
 
     def add_task(self, type: TaskType, position: Tuple[int, int], priority: int = 1) -> Task:
-        """Add a new task with specified priority"""
+        """
+        Create and add a new task to the available tasks pool.
+        
+        Args:
+            type: The type of task to create (TaskType enum)
+            position: (x, y) coordinates where the task should be performed
+            priority: Task priority level, higher numbers = higher priority (default: 1)
+            
+        Returns:
+            Task: The newly created task
+        """
         task = Task(type=type, position=position, priority=priority)
         self.available_tasks.append(task)
         return task
 
     def get_available_task(self, entity):
-        """Get the closest available task for an entity"""
-        # First check if this entity already has a task
+        """
+        Find and assign the closest available task to an entity.
+        
+        Args:
+            entity: The entity requesting a task
+            
+        Returns:
+            Task: The closest available task, or None if no tasks are available
+        """
+        # Check if entity already has an assigned task
         for task in self.assigned_tasks:
             if task.assigned_to == entity:
-                return task  # Don't reassign if entity already has this task
+                return task  # Prevent multiple task assignments
             
-        # If no tasks available, return None
+        # Exit early if no tasks are available
         if not self.available_tasks:
             return None
         
-        # Get closest task that isn't already assigned
+        # Filter out tasks that are already assigned
         available_tasks = [t for t in self.available_tasks if not t.assigned_to]
         if not available_tasks:
             return None
         
+        # Sort tasks by distance to entity (using squared distance for efficiency)
         sorted_tasks = sorted(
             available_tasks,
             key=lambda t: (
@@ -40,8 +69,8 @@ class TaskSystem:
             )
         )
         
+        # Assign the closest task to the entity
         task = sorted_tasks[0]
-        # Move task from available to assigned
         self.available_tasks.remove(task)
         task.assigned_to = entity
         self.assigned_tasks.append(task)
@@ -49,11 +78,18 @@ class TaskSystem:
         return task
 
     def complete_task(self, task):
-        """Complete a task"""
+        """
+        Mark a task as completed and clean up related references.
         
+        Args:
+            task: The task to complete
+            
+        Returns:
+            bool: True if task was successfully completed
+        """
         if task in self.assigned_tasks:
             self.assigned_tasks.remove(task)
-            # Clear the entity's reference to this task
+            # Clear task references from the entity
             if task.assigned_to:
                 task.assigned_to.task_handler.current_task = None
                 task.assigned_to.task_handler.wire_task = None
@@ -63,14 +99,28 @@ class TaskSystem:
         return True
 
     def return_task(self, task):
-        """Return a task to the available pool"""
+        """
+        Return an assigned task back to the available tasks pool.
+        Useful when an entity cannot complete its assigned task.
+        
+        Args:
+            task: The task to return to the available pool
+        """
         if task in self.assigned_tasks:
             self.assigned_tasks.remove(task)
             task.assigned_to = None
             self.available_tasks.append(task)
 
     def get_highest_priority_task(self, entity) -> Optional[Task]:
-        """Get the highest priority available task"""
+        """
+        Find the highest priority task from the available tasks pool.
+        
+        Args:
+            entity: The entity requesting a task
+            
+        Returns:
+            Optional[Task]: The highest priority task, or None if no tasks are available
+        """
         available_tasks = [
             task for task in self.available_tasks 
             if not task.assigned_to

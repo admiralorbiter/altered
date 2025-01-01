@@ -4,8 +4,15 @@ from utils.types import Task, TaskType, EntityState
 import pygame
 import random
 
+# TaskHandler manages and executes tasks for game entities (like cats)
+# It handles task validation, progress tracking, and completion
 class TaskHandler:
     def __init__(self, entity):
+        """Initialize a new TaskHandler for an entity.
+        
+        Args:
+            entity: The game entity (e.g., cat) this handler is attached to
+        """
         self.entity = entity
         self.game_state = entity.game_state  # Get game_state from entity
         self.current_task: Optional[Task] = None
@@ -17,7 +24,13 @@ class TaskHandler:
         self.build_time_required = 2.0
         
     def update(self, dt: float) -> None:
-        """Update task progress"""
+        """Update the current task's progress.
+        
+        Handles the building state and timer for task completion.
+        
+        Args:
+            dt: Delta time (time since last update) in seconds
+        """
         if not self.current_task:
             return
         
@@ -38,7 +51,14 @@ class TaskHandler:
                 # Don't force an immediate update
 
     def _update_wire_construction(self, dt: float) -> None:
-        """Handle wire construction task updates"""
+        """Handle the progress of wire construction tasks.
+        
+        Updates building state based on proximity to construction site
+        and manages construction timer.
+        
+        Args:
+            dt: Delta time in seconds
+        """
         if not self.wire_task:
             return
 
@@ -71,7 +91,14 @@ class TaskHandler:
                 self.build_timer = 0
 
     def start_task(self, task: Task) -> bool:
-        """Start a new task"""
+        """Attempt to start a new task for the entity.
+        
+        Args:
+            task: The Task object to begin
+            
+        Returns:
+            bool: True if task was successfully started, False otherwise
+        """
         if not self.validate_wire_task(task):
             return False
         
@@ -80,12 +107,27 @@ class TaskHandler:
         return True
 
     def set_wire_task(self, position: Tuple[int, int], wire_type: str) -> bool:
-        """Set up wire task data"""
+        """Configure the wire construction task details.
+        
+        Args:
+            position: Grid coordinates (x, y) for wire placement
+            wire_type: Type of wire to construct
+            
+        Returns:
+            bool: True if wire task was set up successfully
+        """
         self.wire_task = (position, wire_type)
         return True
 
     def complete_current_task(self) -> bool:
-        """Complete the current task"""
+        """Mark the current task as complete and reset entity state.
+        
+        Notifies task system, clears task-related states, and
+        returns entity to wandering behavior.
+        
+        Returns:
+            bool: True if task was successfully completed
+        """
         if not self.current_task:
             return False
         
@@ -107,11 +149,19 @@ class TaskHandler:
         return result
 
     def has_task(self) -> bool:
-        """Check if entity has an active task"""
+        """Check if the entity currently has an assigned task.
+        
+        Returns:
+            bool: True if there is an active task
+        """
         return self.current_task is not None
 
     def get_task_position(self) -> Optional[Tuple[int, int]]:
-        """Get the position of the current task"""
+        """Retrieve the grid coordinates of the current wire task.
+        
+        Returns:
+            Optional[Tuple[int, int]]: Grid coordinates or None if no task
+        """
         if not self.current_task:
             return None
         
@@ -121,17 +171,29 @@ class TaskHandler:
         return self.wire_task[0]
 
     def stop(self) -> None:
-        """Stop current task"""
+        """Pause the current task's progress without canceling it.
+        
+        Resets building state and timer while preserving task assignment.
+        """
         self.is_building = False
         self.build_timer = 0
         # Note: We don't clear the task itself as it might need to be resumed 
 
     def get_current_task(self) -> Optional[Task]:
-        """Get the current task"""
+        """Retrieve the currently assigned task.
+        
+        Returns:
+            Optional[Task]: Current task object or None if no task
+        """
         return self.current_task
 
     def get_wire_task_info(self) -> Optional[dict]:
-        """Get information about current wire task"""
+        """Get details about the current wire construction task.
+        
+        Returns:
+            Optional[dict]: Dictionary containing wire task position and queue,
+                          or None if no wire task exists
+        """
         if not self.wire_task or not self.current_task:
             return None
             
@@ -141,7 +203,16 @@ class TaskHandler:
         } 
 
     def validate_wire_task(self, task: Task) -> bool:
-        """Validate and set up a wire construction task"""
+        """Verify if a task is a valid wire construction task.
+        
+        Checks task type and attempts to set up wire construction data.
+        
+        Args:
+            task: Task object to validate
+            
+        Returns:
+            bool: True if task is valid wire construction, False otherwise
+        """
         
         # Compare the enum values directly
         if task.type.value != TaskType.WIRE_CONSTRUCTION.value:

@@ -126,32 +126,15 @@ class AbductionLevel(BaseLevel):
             (MAP_WIDTH - 6, 5), (MAP_WIDTH - 6, MAP_HEIGHT - 6)
         ]
         
-        # Add vertical wall divisions for tactical gameplay
-        self._add_vertical_walls()
-    
-    def _spawn_food_items(self, center_x, center_y):
-        """
-        Place food items strategically around the map.
-        70% near center for easy access, 30% near barriers for risk/reward.
+        for bx, by in barrier_positions:
+            for dx in range(3):
+                for dy in range(3):
+                    self.tilemap.set_tile(bx + dx, by + dy, TILE_BARRIER.name)
         
-        Args:
-            center_x, center_y (int): Center coordinates of the map
-        """
-        radius = 8  # Distribution radius
-        
-        for _ in range(8):  # 8 food items total
-            while True:
-                # Strategic placement logic
-                if random.random() < 0.7:  # 70% near center
-                    x, y = self._get_center_food_position(center_x, center_y, radius)
-                else:  # 30% near barriers
-                    x, y = self._get_barrier_food_position()
-                
-                if self.tilemap.is_walkable(x, y):
-                    food = Food(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2)
-                    food.game_state = self.game_state
-                    self.entity_manager.add_item(food)
-                    break
+        # Add vertical barriers (gray)
+        for y in range(MAP_HEIGHT):
+            self.tilemap.set_tile(MAP_WIDTH // 3, y, TILE_WALL.name)
+            self.tilemap.set_tile(2 * MAP_WIDTH // 3, y, TILE_WALL.name)
     
     def update(self, dt):
         self.entity_manager.update(dt)

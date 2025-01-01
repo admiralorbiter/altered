@@ -8,11 +8,13 @@ from typing import Optional, Tuple, List
 from enum import Enum
 
 class TaskType(Enum):
+    """Enumeration of different task types in the game"""
     WIRE_CONSTRUCTION = "wire_construction"
     # Future task types can be added here
 
 @dataclass
 class Task:
+    """Represents a game task that can be assigned to entities"""
     type: TaskType
     position: Tuple[int, int]
     assigned_to: Optional[Entity] = None
@@ -20,12 +22,25 @@ class Task:
     completed: bool = False
     
     def should_interrupt(self) -> bool:
-        """Whether this task should interrupt current activities"""
-        return self.priority >= 2  # High and Critical tasks interrupt
+        """
+        Determines if this task should interrupt an entity's current activity
+        Returns:
+            bool: True if priority is high or critical (>= 2)
+        """
+        return self.priority >= 2
 
 
 class WireSystem:
+    """
+    Manages the wire placement, construction, and rendering system in the game.
+    Handles user interactions for wire placement and maintains wire state.
+    """
     def __init__(self, game_state):
+        """
+        Initialize the wire system
+        Args:
+            game_state: Reference to the main game state
+        """
         self.game_state = game_state
         self.is_placing_wire = False
         self.ghost_position = None
@@ -34,6 +49,13 @@ class WireSystem:
         self.current_wire_path = []
 
     def handle_event(self, event):
+        """
+        Handle pygame events related to wire placement
+        Args:
+            event: Pygame event to process
+        Returns:
+            bool: True if event was handled by wire system
+        """
         if not self.game_state.wire_mode:
             return False
 
@@ -67,12 +89,25 @@ class WireSystem:
         return False
 
     def _update_ghost_position(self, mouse_pos):
+        """
+        Updates the ghost wire position based on mouse coordinates
+        Args:
+            mouse_pos: Tuple of (x, y) mouse position in screen coordinates
+        """
         tile_x = int((mouse_pos[0] / self.game_state.zoom_level + self.game_state.camera_x) // TILE_SIZE)
         tile_y = int((mouse_pos[1] / self.game_state.zoom_level + self.game_state.camera_y) // TILE_SIZE)
         self.ghost_position = (tile_x, tile_y)
         self.ghost_valid = self._is_valid_wire_position(tile_x, tile_y)
 
     def _get_line_positions(self, x1, y1, x2, y2):
+        """
+        Implements Bresenham's line algorithm to get all tile positions between two points
+        Args:
+            x1, y1: Starting point coordinates
+            x2, y2: Ending point coordinates
+        Returns:
+            List[Tuple[int, int]]: List of tile positions along the line
+        """
         positions = []
         dx = abs(x2 - x1)
         dy = abs(y2 - y1)
@@ -103,7 +138,12 @@ class WireSystem:
         return positions
 
     def _place_wire_path(self):
-        """Place a path of wires and create tasks for their construction"""
+        """
+        Places a path of wires and creates construction tasks for each wire
+        End points of the wire path are given higher priority
+        Returns:
+            List[Task]: List of created construction tasks
+        """
         
         created_tasks = []
         for i, pos in enumerate(self.current_wire_path):
@@ -126,7 +166,13 @@ class WireSystem:
         return created_tasks
 
     def complete_wire_construction(self, position):
-        """Complete wire construction at position"""
+        """
+        Marks a wire as constructed at the given position
+        Args:
+            position: Tuple of (x, y) coordinates where construction is complete
+        Returns:
+            bool: True if construction was completed successfully
+        """
         
         tilemap = self.game_state.current_level.tilemap
         component = tilemap.electrical_components.get(position)
@@ -141,7 +187,11 @@ class WireSystem:
         return True
 
     def draw(self, surface):
-        """Draw all wires based solely on their state in the tilemap"""
+        """
+        Renders all wires and ghost wire previews to the screen
+        Args:
+            surface: Pygame surface to draw on
+        """
         tilemap = self.game_state.current_level.tilemap
         
         # Draw all wires based on their construction state
@@ -196,6 +246,13 @@ class WireSystem:
                                 int(node_radius))
 
     def _is_valid_wire_position(self, x, y):
+        """
+        Checks if a wire can be placed at the given coordinates
+        Args:
+            x, y: Coordinates to check
+        Returns:
+            bool: True if position is valid for wire placement
+        """
         if not (0 <= x < self.game_state.current_level.tilemap.width and 
                 0 <= y < self.game_state.current_level.tilemap.height):
             return False
