@@ -43,6 +43,8 @@ class Cat(Entity):
         for component in self.components.values():
             if hasattr(component, 'start'):
                 component.start()
+        
+        self._entity_id = id(self)
 
     def update(self, dt: float) -> None:
         """Update cat and all its components"""
@@ -99,9 +101,43 @@ class Cat(Entity):
     @property
     def task_handler(self):
         """Compatibility property for old task handler access"""
-        return self.task
+        if not hasattr(self, '_task_handler_wrapper'):
+            # Create a wrapper that makes TaskComponent look like old TaskHandler
+            class TaskHandlerWrapper:
+                def __init__(self, task_component):
+                    self.task_component = task_component
+                    
+                @property
+                def current_task(self):
+                    return self.task_component.current_task
+                    
+                @property
+                def wire_task(self):
+                    if not self.task_component.current_task:
+                        return None
+                    return (self.task_component._task_position, 'wire')
+                    
+                def has_task(self):
+                    return self.task_component.has_task()
+                    
+                def get_task_position(self):
+                    return self.task_component.get_task_position()
+                    
+                def get_current_task(self):
+                    return self.task_component.get_current_task()
+                    
+                def get_wire_task_info(self):
+                    return self.task_component.get_wire_task_info()
+                    
+            self._task_handler_wrapper = TaskHandlerWrapper(self.task)
+        return self._task_handler_wrapper
 
     @property
     def ai_state(self):
         """Compatibility property for AI state access"""
         return self.ai.state if self.ai else None 
+
+    @property
+    def entity_id(self):
+        """Unique identifier for this cat"""
+        return self._entity_id 

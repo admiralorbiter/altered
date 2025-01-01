@@ -38,6 +38,13 @@ class PathfindingComponent(Component):
         # Get tilemap from game state
         try:
             tilemap = self.entity.game_state.current_level.tilemap
+            if not tilemap.is_walkable(target_tile[0], target_tile[1]):
+                # Try to find nearest walkable tile
+                for dx, dy in [(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
+                    new_x, new_y = target_tile[0] + dx, target_tile[1] + dy
+                    if tilemap.is_walkable(new_x, new_y):
+                        target_tile = (new_x, new_y)
+                        break
         except AttributeError:
             return False
 
@@ -51,10 +58,22 @@ class PathfindingComponent(Component):
         )
 
         if self.path:
+            print(f"[DEBUG] Found path with {len(self.path)} waypoints from {current_tile} to {target_tile}")
             self.current_waypoint = 0
             self._set_next_waypoint()
             return True
-        return False
+        else:
+            print(f"[DEBUG] No path found from {current_tile} to {target_tile}")
+            return False
+
+    def waypoint_reached(self) -> None:
+        """Called by movement component when waypoint is reached"""
+        if self.path and self.current_waypoint < len(self.path) - 1:
+            self.current_waypoint += 1
+            self._set_next_waypoint()
+        else:
+            self.path = None
+            self.current_waypoint = 0
 
     def _set_next_waypoint(self) -> None:
         """Update movement component with next waypoint"""
@@ -65,6 +84,7 @@ class PathfindingComponent(Component):
         # Convert tile coordinates to pixel coordinates (center of tile)
         pixel_x = next_tile[0] * self.tile_size + (self.tile_size // 2)
         pixel_y = next_tile[1] * self.tile_size + (self.tile_size // 2)
+        print(f"[DEBUG] Setting next waypoint: ({pixel_x}, {pixel_y})")
         self._movement.set_target_position(float(pixel_x), float(pixel_y))
 
     def update(self, dt: float) -> None:
@@ -100,3 +120,11 @@ class PathfindingComponent(Component):
                                 (start_pos[1] - camera_y) * zoom),
                                ((end_pos[0] - camera_x) * zoom,
                                 (end_pos[1] - camera_y) * zoom), 2)
+
+    def clear_path(self) -> None:
+        """Clear current path and reset state"""
+        self.path = []
+        self.current_waypoint = 0
+        if self._movement:
+            self._movement.moving = False
+            self._movement.target_position = None

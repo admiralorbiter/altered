@@ -2,6 +2,7 @@ import pygame
 
 from utils.config import TILE_SIZE
 from .base_item import Item
+from components.hunger_component import HungerComponent
 
 class Food(Item):
     """
@@ -16,26 +17,16 @@ class Food(Item):
         self.nutrition_value = 100  # Amount of health/hunger restored
         self.position = pygame.Vector2(x, y)  # Store raw position
         
-    def use(self, user):
-        """
-        Consume the food item to restore health and/or hunger.
+    def use(self, user) -> bool:
+        """Use the food item to restore hunger"""
+        # Get the hunger component
+        hunger_component = user.get_component(HungerComponent)
+        if not hunger_component:
+            return False
         
-        Args:
-            user: Entity consuming the food
-            
-        Returns:
-            bool: True if successfully consumed, False otherwise
-        """
-        if hasattr(user, 'health'):
-            if hasattr(user, 'hunger'):
-                # Restore both hunger and health if entity has both
-                user.hunger = user.max_hunger
-                user.health = user.max_health
-            else:
-                # Otherwise just restore health
-                user.health = min(user.health + self.nutrition_value, user.max_health)
-            return True  # Item was consumed
-        return False
+        # Feed the entity
+        hunger_component.feed(hunger_component.max_hunger)
+        return True
         
     def render_with_offset(self, surface, camera_x, camera_y):
         """

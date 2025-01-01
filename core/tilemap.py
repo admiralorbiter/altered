@@ -95,7 +95,7 @@ class TileMap:
         end_x = min(self.width, int((camera_x + WINDOW_WIDTH / zoom_level) // TILE_SIZE) + 1)
         end_y = min(self.height, int((camera_y + WINDOW_HEIGHT / zoom_level) // TILE_SIZE) + 1)
         
-        # First render tiles
+        # First render terrain tiles
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 tile = self.tiles[y][x]
@@ -113,13 +113,13 @@ class TileMap:
                                (screen_x, screen_y, 
                                 TILE_SIZE * zoom_level, TILE_SIZE * zoom_level), 
                                max(1, int(zoom_level)))
-        
+
         # Then render electrical components
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 if (x, y) in self.electrical_components:
                     self.render_electrical(surface, x, y, camera_x, camera_y, zoom_level)
-            
+
     def _render_electrical_layer(self, surface, camera_x, camera_y):
         zoom_level = self.game_state.zoom_level
         
@@ -157,46 +157,31 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        """
-        Render a single electrical component with visual indicators for its state.
-        Components under construction are yellow, completed ones are cyan.
-        
-        Args:
-            surface (pygame.Surface): Target surface to render on
-            tile_x, tile_y (int): Grid coordinates of the component
-            camera_x, camera_y (float): Camera position
-            zoom_level (float): Current zoom level for scaling
-        """
-        # Calculate screen position
-        screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
-        screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
-        tile_size = int(TILE_SIZE * zoom_level)
-        
+        """Render a single electrical component"""
         component = self.electrical_components.get((tile_x, tile_y))
         if not component:
             return
         
-        # Different colors for under construction vs completed
+        # Calculate screen position
+        screen_x = (tile_x * TILE_SIZE - camera_x) * zoom_level
+        screen_y = (tile_y * TILE_SIZE - camera_y) * zoom_level
+        tile_size = TILE_SIZE * zoom_level
+        
+        # Choose color based on construction state
         wire_color = (255, 255, 0) if component.under_construction else (0, 255, 255)  # Yellow -> Cyan
-        wire_width = max(2 * zoom_level, 1) if component.under_construction else max(4 * zoom_level, 2)
+        wire_width = max(2 * zoom_level, 1) if component.under_construction else max(3 * zoom_level, 2)
         
-        # Calculate wire positions
-        start_x = screen_x + int(tile_size * 0.2)
-        start_y = screen_y + int(tile_size * 0.5)
-        end_x = screen_x + int(tile_size * 0.8)
-        end_y = screen_y + int(tile_size * 0.5)
-        
-        # Draw the wire
+        # Draw main wire line
         pygame.draw.line(surface, wire_color,
-                        (start_x, start_y),
-                        (end_x, end_y),
+                        (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
+                        (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
                         int(wire_width))
         
         # Draw connection nodes
         node_radius = max(3 * zoom_level, 2)
         pygame.draw.circle(surface, wire_color,
-                          (start_x, start_y),
+                          (int(screen_x + tile_size * 0.2), int(screen_y + tile_size * 0.5)),
                           int(node_radius))
         pygame.draw.circle(surface, wire_color,
-                          (end_x, end_y),
+                          (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
                           int(node_radius))

@@ -1,6 +1,6 @@
 from components.base_component import Component
 from components.movement_component import MovementComponent
-from utils.types import TaskType
+from utils.types import EntityState, TaskType
 import pygame
 from utils.config import TILE_SIZE
 
@@ -11,11 +11,12 @@ class TaskComponent(Component):
         self._movement = None
         self._task_position = None
         self._work_progress = 0
-        self._work_time = 0
+        self._work_time = 2.0  # Default work time
         self._task_complete = False
+        self._is_building = False
 
     def start(self) -> None:
-        """Get reference to movement component when starting"""
+        """Get reference to movement component"""
         self._movement = self.entity.get_component(MovementComponent)
 
     def has_task(self) -> bool:
@@ -23,82 +24,107 @@ class TaskComponent(Component):
         return self.current_task is not None
 
     def start_task(self, task) -> bool:
-        """
-        Attempt to start a new task
-        
-        Args:
-            task: Task object to start
-            
-        Returns:
-            bool: True if task was successfully started
-        """
+        """Attempt to start a new task"""
         if self.current_task:
+            return False
+            
+        # Need to check if task is already assigned to another entity
+        if task.assigned_to and task.assigned_to != id(self.entity):
+            print(f"[DEBUG] Task already assigned to {task.assigned_to}, our id is {id(self.entity)}")
             return False
             
         self.current_task = task
         self._task_position = task.position
         self._work_progress = 0
-        self._work_time = task.work_time
+        self._work_time = getattr(task, 'work_time', 2.0)
         self._task_complete = False
+        self._is_building = False
+        
+        print(f"[DEBUG] Starting task {task.type} at {task.position} for cat {id(self.entity)}")
         return True
 
     def stop(self) -> None:
         """Stop current task"""
         if self.current_task:
-            self.current_task.abandon()
+            # Return task to system for reassignment
+            self.entity.game_state.task_system.return_task(self.current_task)
             self.current_task = None
             self._task_position = None
             self._work_progress = 0
             self._task_complete = False
+            self._is_building = False
 
     def get_task_position(self) -> tuple[int, int]:
         """Get current task position in tile coordinates"""
         return self._task_position if self._task_position else None
 
-    def update(self, dt: float) -> None:
-        """
-        Update task progress
-        
-        Args:
-            dt: Delta time since last update
-        """
+    def update(self, dt: float) -> bool:
+        """Update task progress and handle completion"""
         if not self.current_task:
-            return
-
-        # Check if we're close enough to work
-        if not self._is_at_task_position():
-            return
-
-        # Update work progress
-        self._work_progress += dt
+            return False
         
-        # Check for task completion
-        if self._work_progress >= self._work_time:
-            self._complete_task()
+        # Only update progress if we're at the task location
+        if self._is_at_task_position():
+            # Update progress on the task itself
+            self.current_task._work_progress += dt
+            print(f"[DEBUG] Task update for {self.current_task.type}:")
+            print(f"  - Progress: {self.current_task._work_progress:.1f}/{self.current_task.work_time}")
+
+            # Check for task completion
+            if self.current_task._work_progress >= self.current_task.work_time:
+                print("[DEBUG] Task completed!")
+                
+                # Handle wire construction completion
+                if self.current_task.type == TaskType.WIRE_CONSTRUCTION:
+                    wire_pos = self.current_task.position
+                    electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+                    if electrical_comp:
+                        electrical_comp.under_construction = False
+                        print(f"[DEBUG] Wire at {wire_pos} marked as completed")
+                
+                # Return task to system and clear it
+                self.entity.game_state.task_system.complete_task(self.current_task)
+                self.current_task = None
+                return True
+        
+        return False
 
     def _is_at_task_position(self) -> bool:
         """Check if entity is close enough to work on task"""
         if not self._task_position:
             return False
             
-        current_tile = (
-            int(self.entity.position.x // TILE_SIZE),
-            int(self.entity.position.y // TILE_SIZE)
-        )
+        # Use exact position for more precise distance check
+        cat_x = self.entity.position.x / TILE_SIZE
+        cat_y = self.entity.position.y / TILE_SIZE
         
-        dx = abs(self._task_position[0] - current_tile[0])
-        dy = abs(self._task_position[1] - current_tile[1])
+        # Calculate distance to task center
+        dx = abs(self._task_position[0] + 0.5 - cat_x)
+        dy = abs(self._task_position[1] + 0.5 - cat_y)
         
-        return dx <= 1 and dy <= 1
+        # Use a smaller working radius (1.5 tiles)
+        working_radius = 1.5
+        is_in_range = dx <= working_radius and dy <= working_radius
+        
+        # Add more detailed debugging
+        if is_in_range:
+            print(f"[DEBUG] Cat in range of task:")
+            print(f"  - Cat pos: ({cat_x:.1f}, {cat_y:.1f})")
+            print(f"  - Task pos: ({self._task_position[0]}, {self._task_position[1]})")
+            print(f"  - Distance: dx={dx:.1f}, dy={dy:.1f}")
+        
+        return is_in_range
 
     def _complete_task(self) -> None:
         """Handle task completion"""
         if self.current_task:
-            self.current_task.complete()
+            # Use task system to handle completion
+            self.entity.game_state.task_system.complete_task(self.current_task)
             self.current_task = None
             self._task_position = None
             self._work_progress = 0
             self._task_complete = True
+            self._is_building = False
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Render task progress if working"""
@@ -124,3 +150,27 @@ class TaskComponent(Component):
                         (screen_x - 20 * zoom_level,
                          screen_y - 30 * zoom_level,
                          width, 5 * zoom_level)) 
+
+    def get_current_task(self):
+        """Get the current task (compatibility method for debug UI)"""
+        return self.current_task
+
+    def get_wire_task_info(self):
+        """Get wire task info (compatibility method for debug UI)"""
+        if not self.current_task or not self._task_position:
+            return None
+        
+        return {
+            'position': self._task_position,
+            'queue': []  # Wire queue implementation can be added later if needed
+        } 
+
+    @property
+    def progress(self) -> float:
+        """Get current work progress"""
+        return self.current_task._work_progress if self.current_task else 0.0
+
+    @property
+    def required_progress(self) -> float:
+        """Get required work time"""
+        return self.current_task.work_time if self.current_task else 2.0 

@@ -91,19 +91,18 @@ class TaskHandler:
                 self.build_timer = 0
 
     def start_task(self, task: Task) -> bool:
-        """Attempt to start a new task for the entity.
-        
-        Args:
-            task: The Task object to begin
-            
-        Returns:
-            bool: True if task was successfully started, False otherwise
-        """
+        """Attempt to start a new task for the entity."""
         if not self.validate_wire_task(task):
             return False
         
+        # Check if task is already assigned to another entity
+        if task.assigned_to and task.assigned_to != id(self.entity):
+            print(f"[DEBUG] Task already assigned to {task.assigned_to}, our id is {id(self.entity)}")
+            return False
+        
         self.current_task = task
-        self.entity.movement_handler.allow_movement()  # Allow movement for new task
+        task.assigned_to = id(self.entity)
+        print(f"[DEBUG] Starting task {task.type} at {task.position} for cat {id(self.entity)}")
         return True
 
     def set_wire_task(self, position: Tuple[int, int], wire_type: str) -> bool:

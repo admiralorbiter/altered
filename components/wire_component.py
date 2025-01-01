@@ -35,23 +35,54 @@ class WireComponent(Component):
             wire_pos, wire_type = self.wire_task
             # Place the wire
             try:
-                self.entity.game_state.current_level.tilemap.set_electrical(
-                    wire_pos[0], wire_pos[1], wire_type
-                )
+                electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+                if electrical_comp:
+                    # Only mark as completed if task progress is complete
+                    task_comp = self.entity.get_component('task')
+                    if task_comp and task_comp.current_task and task_comp.current_task.progress >= task_comp.current_task.work_time:
+                        electrical_comp.under_construction = False  # Mark as completed
+                        print(f"[DEBUG] Wire at {wire_pos} marked as completed")
+                        # Clear the task only after successful completion
+                        self.wire_task = None
+                        # Notify task system of completion
+                        self.entity.game_state.task_system.complete_task(task_comp.current_task)
+                        task_comp.stop()
             except AttributeError as e:
-                print(f"Error placing wire: {e}")
-            
-            # Clear the task
-            self.wire_task = None
+                print(f"Error updating wire: {e}")
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
-        """Draw wire task indicator"""
-        if self.wire_task:
-            zoom = getattr(self.entity.game_state, 'zoom_level', 1)
-            wire_pos = self.wire_task[0]
-            # Draw indicator at wire placement location
-            screen_x = (wire_pos[0] * TILE_SIZE + TILE_SIZE//2 - camera_x) * zoom
-            screen_y = (wire_pos[1] * TILE_SIZE + TILE_SIZE//2 - camera_y) * zoom
-            pygame.draw.circle(surface, (0, 255, 255), 
-                             (int(screen_x), int(screen_y)), 
-                             int(5 * zoom)) 
+        """Draw wire and its construction state"""
+        if not self.wire_task:
+            return
+        
+        zoom = self.entity.game_state.zoom_level
+        wire_pos = self.wire_task[0]
+        
+        # Calculate screen position
+        screen_x = (wire_pos[0] * TILE_SIZE - camera_x) * zoom
+        screen_y = (wire_pos[1] * TILE_SIZE - camera_y) * zoom
+        tile_size = TILE_SIZE * zoom
+        
+        # Get wire component to check construction state
+        electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+        if not electrical_comp:
+            return
+        
+        # Choose color based on construction state
+        wire_color = (255, 255, 0) if electrical_comp.under_construction else (0, 255, 255)  # Yellow -> Cyan
+        wire_width = max(2 * zoom, 1) if electrical_comp.under_construction else max(3 * zoom, 2)
+        
+        # Draw main wire line
+        pygame.draw.line(surface, wire_color,
+                        (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
+                        (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
+                        int(wire_width))
+        
+        # Draw connection nodes
+        node_radius = max(3 * zoom, 2)
+        pygame.draw.circle(surface, wire_color,
+                          (int(screen_x + tile_size * 0.2), int(screen_y + tile_size * 0.5)),
+                          int(node_radius))
+        pygame.draw.circle(surface, wire_color,
+                          (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
+                          int(node_radius)) 

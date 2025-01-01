@@ -53,6 +53,16 @@ class MovementComponent(Component):
         
         self.set_target_position(x, y)
 
+    def start_path_to_position(self, target_position) -> bool:
+        """Start pathfinding to a target position"""
+        if not self._pathfinding:
+            return False
+            
+        return self._pathfinding.set_target(
+            target_position.x,
+            target_position.y
+        )
+
     def set_target_position(self, pixel_x: float, pixel_y: float) -> None:
         """Set movement target in pixel coordinates"""
         self.target_position = pygame.math.Vector2(pixel_x, pixel_y)
@@ -68,27 +78,26 @@ class MovementComponent(Component):
             direction = self.target_position - self.position
             distance = direction.length()
             
-            if distance < 1:  # Reached target (smaller threshold)
+            if distance < 2:  # Slightly larger threshold
+                # Snap to target position
                 self.position = pygame.math.Vector2(self.target_position)
                 self.entity.position = pygame.math.Vector2(self.position)
                 self.moving = False
                 self.target_position = None
+                # Signal pathfinding that we've reached the waypoint
+                if self._pathfinding:
+                    self._pathfinding.waypoint_reached()
             else:
                 # Normalize direction and apply movement
                 normalized_dir = direction.normalize()
                 movement = normalized_dir * self.speed * dt
                 
-                # Check if we would overshoot
-                if movement.length() > distance:
-                    self.position = pygame.math.Vector2(self.target_position)
-                else:
-                    self.position += movement
-                
-                # Update entity position
-                self.entity.position.x = round(self.position.x)
-                self.entity.position.y = round(self.position.y)
+                # Update position
+                self.position += movement
+                self.entity.position = pygame.math.Vector2(self.position)
                 
         except (TypeError, AttributeError) as e:
+            print(f"[DEBUG] Movement error: {e}")
             self.moving = False
             self.target_position = None
 
@@ -110,3 +119,11 @@ class MovementComponent(Component):
             pygame.draw.circle(surface, (255, 0, 0), start_pos, 3)
             # Draw target marker
             pygame.draw.circle(surface, (0, 255, 0), end_pos, 3) 
+
+    def stop(self) -> None:
+        """Stop current movement and clean up"""
+        self.moving = False
+        self.target_position = None
+        # Clear pathfinding state
+        if self._pathfinding:
+            self._pathfinding.clear_path() 

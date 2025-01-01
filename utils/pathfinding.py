@@ -63,16 +63,30 @@ def get_neighbors(pos: Tuple[int, int], tilemap) -> List[Tuple[int, int]]:
     return neighbors
 
 def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=None, entity=None) -> List[Tuple[int, int]]:
-    """
-    A* pathfinding algorithm with path reservation support
-    Returns a list of tile coordinates from start to end, or None if no path exists
-    """
-    # Check if start and end are valid
+    """A* pathfinding algorithm with path reservation support"""
+    # Validate start and end positions
     if not tilemap.is_walkable(*start):
+        print(f"[DEBUG] Start position {start} is not walkable")
         return None
         
     if not tilemap.is_walkable(*end):
-        return None
+        print(f"[DEBUG] Finding nearest walkable tile to {end}")
+        # Search in expanding radius for walkable tile
+        for radius in range(1, 6):  # Try up to 5 tiles away
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    test_pos = (end[0] + dx, end[1] + dy)
+                    if tilemap.is_walkable(*test_pos):
+                        print(f"[DEBUG] Found walkable alternative at {test_pos}")
+                        end = test_pos
+                        break
+                if tilemap.is_walkable(*end):
+                    break
+            if tilemap.is_walkable(*end):
+                break
+        else:
+            print(f"[DEBUG] No walkable tiles found near {end}")
+            return None
 
     # Initialize data structures
     frontier = PriorityQueue()
@@ -81,7 +95,6 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
     came_from = {start: None}
     cost_so_far = {start: 0}
     
-    # Get path reservation system if available
     path_system = getattr(game_state, 'path_reservation_system', None) if game_state else None
     
     while not frontier.empty():
@@ -90,9 +103,8 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         if current == end:
             break
             
-        # Check all adjacent tiles
         for next_pos in get_neighbors(current, tilemap):
-            # Skip if tile is reserved by another entity
+            # Allow passing through tiles reserved by self
             if path_system and path_system.is_tile_reserved(next_pos, entity):
                 continue
                 
@@ -103,9 +115,10 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
                 priority = new_cost + manhattan_distance(next_pos, end)
                 frontier.put((priority, next_pos))
                 came_from[next_pos] = current
-    
+
     # Build path
     if end not in came_from:
+        print(f"[DEBUG] No path found from {start} to {end}")
         return None
         
     path = []
@@ -115,8 +128,12 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         current = came_from[current]
     path.reverse()
     
-    # Try to reserve the path if system is available
-    if path_system and not path_system.reserve_path(entity, path):
-        return None
+    # Try to reserve the path
+    if path_system:
+        if not path_system.reserve_path(entity, path):
+            print(f"[DEBUG] Path reservation failed for {entity}")
+            return None
+        else:
+            print(f"[DEBUG] Path reserved successfully: {path}")
     
     return path 

@@ -1,3 +1,4 @@
+from components.hunger_component import HungerComponent
 from entities.items.food import Food
 from utils.pathfinding import find_path
 from .base_level import BaseLevel
@@ -64,6 +65,10 @@ class UfoLevel(BaseLevel):
         # Create cat entities
         for x, y in cat_positions:
             cat = Cat(x, y, self.game_state)
+            # Restore cat's hunger to full
+            hunger_component = cat.get_component(HungerComponent)
+            if hunger_component:
+                hunger_component.hunger = 100
             self.cats.append(cat)
             self.entity_manager.add_entity(cat)
         

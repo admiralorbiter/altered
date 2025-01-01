@@ -60,23 +60,24 @@ class DebugUI:
         # Display detailed information about each available task
         debug_info.append("Available Tasks:")
         for i, task in enumerate(self.game_state.task_system.available_tasks):
-            debug_info.append(f"{i+1}. Type: {task.type.value} Pos: {task.position}")
+            assigned_str = "Unassigned" if task.assigned_to is None else f"Cat-{task.assigned_to}"
+            debug_info.append(f"{i+1}. Type: {task.type.value} Pos: {task.position} ({assigned_str})")
 
         # Display information about tasks that have been assigned to cats
         debug_info.append("Assigned Tasks:")
-        for i, task in enumerate(self.game_state.task_system.assigned_tasks):
-            assigned_to = "None" if not task.assigned_to else f"Cat-{id(task.assigned_to)}"
-            debug_info.append(f"{i+1}. Type: {task.type.value} Pos: {task.position} -> {assigned_to}")
+        for entity, task in self.game_state.task_system.assigned_tasks.items():
+            cat_id = id(entity)
+            debug_info.append(f"Cat-{cat_id}: Type: {task.type.value} Pos: {task.position}")
 
-        # Display detailed information about each cat in the level
+        # Display detailed information about each cat
         debug_info.append("\n=== Cats ===")
         for i, cat in enumerate(self.game_state.current_level.cats):
-            # Generate basic identification and state information
+            # Basic cat information
             state_str = f"Cat {i+1} ({id(cat)}): "
             state_str += f"State={cat.state.value} "
             state_str += f"Pos=({int(cat.position.x // TILE_SIZE)}, {int(cat.position.y // TILE_SIZE)})"
             
-            # Add movement and pathfinding information
+            # Movement information
             if cat.movement_handler.moving:
                 state_str += " [Moving]"
                 if cat.movement_handler.target_position:
@@ -84,20 +85,19 @@ class DebugUI:
                     target_y = int(cat.movement_handler.target_position.y // TILE_SIZE)
                     state_str += f" -> ({target_x}, {target_y})"
             
-            # Add current task information and wire construction details
+            # Task information
             if cat.task_handler.has_task():
                 current_task = cat.task_handler.get_current_task()
-                state_str += f" [Task: {current_task.type.value} @ {current_task.position}]"
-                
-                # Get wire task info from task handler
-                if current_task.type == TaskType.WIRE_CONSTRUCTION:
-                    wire_info = cat.task_handler.get_wire_task_info()
-                    if wire_info:
-                        state_str += f" [Wire: {wire_info['position']}]"
-                        if wire_info.get('queue'):
-                            state_str += f" [Queue: {[pos for pos, _ in wire_info['queue']]}]"
+                if current_task:
+                    state_str += f" [Task: {current_task.type.value} @ {current_task.position}]"
+                    
+                    # Wire task info
+                    if current_task.type == TaskType.WIRE_CONSTRUCTION:
+                        wire_info = cat.task_handler.get_wire_task_info()
+                        if wire_info:
+                            state_str += f" [Wire: {wire_info['position']}]"
             
-            # Add status flags for important cat states
+            # Status flags
             flags = []
             if cat.is_dead:
                 flags.append("DEAD")
@@ -110,7 +110,7 @@ class DebugUI:
             
             debug_info.append(state_str)
 
-        # Render each line of debug information with a semi-transparent background
+        # Render the debug information
         y_offset = self.position[1]
         for line in debug_info:
             text_surface = self.font.render(line, True, self.text_color)

@@ -144,25 +144,29 @@ class WireSystem:
         Returns:
             List[Task]: List of created construction tasks
         """
-        
         created_tasks = []
         for i, pos in enumerate(self.current_wire_path):
+            # Create electrical component
             component = ElectricalComponent(
                 type='wire',
                 under_construction=True
             )
             
+            # Place component in tilemap
             success = self.game_state.current_level.tilemap.set_electrical(pos[0], pos[1], component)
             if success:
                 # First and last wires in path are higher priority
                 priority = 2 if i == 0 or i == len(self.current_wire_path) - 1 else 1
                 
+                # Create construction task
                 task = self.game_state.task_system.add_task(
                     TaskType.WIRE_CONSTRUCTION,
                     pos,
                     priority=priority
                 )
                 created_tasks.append(task)
+                print(f"[DEBUG] Created wire construction task at {pos}")
+        
         return created_tasks
 
     def complete_wire_construction(self, position):
@@ -173,18 +177,43 @@ class WireSystem:
         Returns:
             bool: True if construction was completed successfully
         """
-        
+        print(f"[DEBUG] Wire system attempting construction at {position}")
+
         tilemap = self.game_state.current_level.tilemap
-        component = tilemap.electrical_components.get(position)
+        component = tilemap.get_electrical(position[0], position[1])
         
         if not component:
+            print(f"[DEBUG] No component found at {position}")
             return False
         
         if not component.under_construction:
+            print(f"[DEBUG] Component at {position} already completed")
             return False
         
+        # Mark as completed and update connections
         component.under_construction = False
+        print(f"[DEBUG] Wire at {position} marked as completed")
+        
+        # Update connected components
+        self._update_wire_connections(position)
+        
+        # Remove task from system
+        self.game_state.task_system.complete_task_at_position(position)
         return True
+
+    def _update_wire_connections(self, position):
+        """Update wire connections after construction"""
+        x, y = position
+        tilemap = self.game_state.current_level.tilemap
+        
+        # Check adjacent tiles for other wires
+        adjacent = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+        for adj_pos in adjacent:
+            adj_comp = tilemap.get_electrical(adj_pos[0], adj_pos[1])
+            if adj_comp and not adj_comp.under_construction:
+                # Add mutual connections
+                adj_comp.connected_tiles.append(position)
+                tilemap.electrical_components[position].connected_tiles.append(adj_pos)
 
     def draw(self, surface):
         """
