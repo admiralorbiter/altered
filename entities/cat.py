@@ -80,36 +80,34 @@ class Cat(Entity):
         if not self.task_handler.has_task():
             task = self.game_state.task_system.get_available_task(self)
             if task:
-                print(f"\n=== TASK ASSIGNMENT ===")
-                print(f"Cat {id(self)} received task at {task.position}")
-                print(f"Task type: {task.type}")
                 if self.task_handler.start_task(task):
-                    print(f"Task started successfully, switching to WORKING")
                     self._switch_state(EntityState.WORKING)
                     return
-                else:
-                    print(f"Failed to start task, returning task to pool")
-                    self.game_state.task_system.return_task(task)
 
         # Normal wandering behavior
         self.wander_timer -= dt
         if self.wander_timer <= 0:
             self._switch_state(EntityState.IDLE)
             self.idle_timer = random.uniform(2.0, 5.0)
-        elif self.movement_handler.has_arrived:
+        elif self.movement_handler.has_arrived:  # Only start new movement if we've arrived
+            self.movement_handler.allow_movement()  # Ensure movement is allowed
             self.movement_handler.start_random_movement()
 
     def _update_working(self, dt):
         """Handle working state"""
         if not self.task_handler.has_task():
-            print(f"Cat {id(self)} has no task, switching to idle")
-            self._switch_state(EntityState.IDLE)
+            print(f"Cat {id(self)} has no task, switching to wandering")
+            self.movement_handler.stop()
+            self._switch_state(EntityState.WANDERING)
+            self.wander_timer = random.uniform(3.0, 8.0)
             return
 
         task_pos = self.task_handler.get_task_position()
         if not task_pos:
-            print(f"Cat {id(self)} has task but no position, switching to idle")
-            self._switch_state(EntityState.IDLE)
+            print(f"Cat {id(self)} has task but no position, switching to wandering")
+            self.movement_handler.stop()
+            self._switch_state(EntityState.WANDERING)
+            self.wander_timer = random.uniform(3.0, 8.0)
             return
         
         current_tile = (
@@ -117,17 +115,12 @@ class Cat(Entity):
             int(self.position.y // TILE_SIZE)
         )
         
-        print(f"\n=== CAT WORKING UPDATE ===")
-        print(f"Cat {id(self)} at {current_tile}")
-        print(f"Task at {task_pos}")
-        
         # If we're close enough, work on the task
         dx = abs(task_pos[0] - current_tile[0])
         dy = abs(task_pos[1] - current_tile[1])
         
         if dx <= 1 and dy <= 1:
-            print(f"Cat {id(self)} within range, working on wire")
-            self.movement_handler.stop()  # Only stop when we're ready to work
+            self.movement_handler.stop()
             self.task_handler.update(dt)
             return
         
@@ -137,10 +130,11 @@ class Cat(Entity):
                 task_pos[0] * TILE_SIZE + TILE_SIZE/2,
                 task_pos[1] * TILE_SIZE + TILE_SIZE/2
             )
-            print(f"Cat {id(self)} starting movement to wire at {task_pos}")
-            self.movement_handler.allow_movement()  # Allow movement before pathfinding
+            self.movement_handler.allow_movement()
             success = self.movement_handler.start_path_to_position(target_pos)
-            print(f"Movement start success: {success}")
+            if not success:
+                self._switch_state(EntityState.WANDERING)
+                self.wander_timer = random.uniform(3.0, 8.0)
 
     def _update_seeking_food(self, dt):
         """Handle food seeking state"""
@@ -169,13 +163,15 @@ class Cat(Entity):
         if self.hunger <= self.critical_hunger:
             self._switch_state(EntityState.SEEKING_FOOD)
 
-    def _switch_state(self, new_state: EntityState):
-        """Handle state transitions"""
-        if new_state == self.state:
-            return
-            
+    def _switch_state(self, new_state: EntityState) -> None:
+        """Switch to a new state"""
         print(f"\n=== STATE CHANGE ===")
         print(f"Cat {id(self)} switching from {self.state} to {new_state}")
+        
+        # Clear any existing movement restrictions when entering wandering state
+        if new_state == EntityState.WANDERING:
+            self.movement_handler.allow_movement()  # Allow new movements
+            self.wander_timer = random.uniform(3.0, 8.0)
         
         self.state = new_state
 

@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 from utils.config import TILE_SIZE
 from utils.types import Task, TaskType, EntityState
 import pygame
+import random
 
 class TaskHandler:
     def __init__(self, entity):
@@ -37,13 +38,9 @@ class TaskHandler:
             # Complete the wire construction
             if self.game_state.wire_system.complete_wire_construction(self.current_task.position):
                 print("Wire construction completed successfully")
-                # Mark task as complete and clear it
-                self.game_state.task_system.complete_task(self.current_task)
-                self.current_task = None
-                self.is_building = False
-                self.build_timer = 0
-                # Switch entity back to idle state
-                self.entity._switch_state(EntityState.IDLE)
+                # Just complete the task, let the cat's update handle the state change
+                self.complete_current_task()
+                # Don't force an immediate update
             else:
                 print("Failed to complete wire construction")
 
@@ -121,11 +118,18 @@ class TaskHandler:
         
         result = self.entity.game_state.task_system.complete_task(self.current_task)
         
+        # Clear all task-related state
         self.is_building = False
         self.build_timer = 0
         self.wire_task = None
         self.current_task = None
-        self.entity.movement_handler.stop()  # Stop movement after task complete
+        
+        # Stop current movement but don't prevent future movement
+        self.entity.movement_handler.stop()
+        self.entity.movement_handler.allow_movement()  # Immediately allow new movements
+        
+        # Switch to wandering state
+        self.entity._switch_state(EntityState.WANDERING)
         
         return result
 

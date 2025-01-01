@@ -56,6 +56,10 @@ class TaskSystem:
         if task in self.assigned_tasks:
             print("Removing task from assigned tasks")
             self.assigned_tasks.remove(task)
+            # Clear the entity's reference to this task
+            if task.assigned_to:
+                task.assigned_to.task_handler.current_task = None
+                task.assigned_to.task_handler.wire_task = None
         else:
             print("Task not found in assigned tasks!")
         
