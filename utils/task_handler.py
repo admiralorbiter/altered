@@ -6,6 +6,7 @@ import pygame
 class TaskHandler:
     def __init__(self, entity):
         self.entity = entity
+        self.game_state = entity.game_state  # Get game_state from entity
         self.current_task: Optional[Task] = None
         self.wire_task: Optional[Tuple[Tuple[int, int], str]] = None  # ((x,y), type)
         
@@ -18,10 +19,34 @@ class TaskHandler:
         """Update task progress"""
         if not self.current_task:
             return
+        
+        if not self.is_building:
+            print(f"Starting construction at {self.current_task.position}")
+            self.is_building = True
+            self.build_timer = 0
+            return
+        
+        # Update build progress
+        self.build_timer += dt
+        print(f"Building progress: {self.build_timer:.1f}/{self.build_time_required}")
+        
+        if self.build_timer >= self.build_time_required:
+            print(f"\n=== COMPLETING TASK ===")
+            print(f"Task at {self.current_task.position}")
             
-        if self.current_task.type == TaskType.WIRE_CONSTRUCTION:
-            self._update_wire_construction(dt)
-    
+            # Complete the wire construction
+            if self.game_state.wire_system.complete_wire_construction(self.current_task.position):
+                print("Wire construction completed successfully")
+                # Mark task as complete and clear it
+                self.game_state.task_system.complete_task(self.current_task)
+                self.current_task = None
+                self.is_building = False
+                self.build_timer = 0
+                # Switch entity back to idle state
+                self.entity._switch_state(EntityState.IDLE)
+            else:
+                print("Failed to complete wire construction")
+
     def _update_wire_construction(self, dt: float) -> None:
         """Handle wire construction task updates"""
         if not self.wire_task:

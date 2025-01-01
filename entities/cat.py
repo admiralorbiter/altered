@@ -102,13 +102,14 @@ class Cat(Entity):
     def _update_working(self, dt):
         """Handle working state"""
         if not self.task_handler.has_task():
-            print(f"Cat {id(self)} has no task, switching to wandering")
-            self._switch_state(EntityState.WANDERING)
+            print(f"Cat {id(self)} has no task, switching to idle")
+            self._switch_state(EntityState.IDLE)
             return
 
         task_pos = self.task_handler.get_task_position()
         if not task_pos:
-            print(f"Cat {id(self)} has task but no position")
+            print(f"Cat {id(self)} has task but no position, switching to idle")
+            self._switch_state(EntityState.IDLE)
             return
         
         current_tile = (

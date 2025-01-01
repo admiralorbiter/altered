@@ -50,11 +50,19 @@ class TaskSystem:
 
     def complete_task(self, task):
         """Complete a task"""
+        print(f"\n=== COMPLETING TASK ===")
+        print(f"Task at {task.position}")
+        
         if task in self.assigned_tasks:
+            print("Removing task from assigned tasks")
             self.assigned_tasks.remove(task)
+        else:
+            print("Task not found in assigned tasks!")
+        
         task.completed = True
         task.assigned_to = None
-        return True 
+        print("Task marked as completed")
+        return True
 
     def return_task(self, task):
         """Return a task to the available pool"""
