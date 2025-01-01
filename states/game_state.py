@@ -5,7 +5,7 @@ from levels.test_level import TestLevel
 from systems.debug_ui import DebugUI
 from .base_state import State
 from utils.config import *
-from entities.manager import EntityManager
+from entities.entity_manager import EntityManager
 from entities.alien import Alien
 from utils.save_load import save_game, load_game
 from levels.ufo_level import UfoLevel

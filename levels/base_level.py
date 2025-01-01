@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import pygame
 from core.tilemap import TileMap
 from entities.alien import Alien
-from entities.manager import EntityManager
+from entities.entity_manager import EntityManager
 from utils.config import BLACK, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH
 
 class BaseLevel(ABC):

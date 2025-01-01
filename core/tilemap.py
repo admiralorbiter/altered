@@ -1,6 +1,6 @@
 import pygame
 from utils.config import *
-from .tiles import TILES, TILE_FLOOR, Tile, ElectricalComponent
+from .tiles import TILES, TILE_FLOOR, Tile
 
 class TileMap:
     """
