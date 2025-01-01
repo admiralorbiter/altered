@@ -14,11 +14,14 @@ class Entity:
         self.position += self.velocity * dt
         
     def render(self, surface):
-        # Default rendering (a rectangle)
-        pygame.draw.rect(surface, self.color, 
-                        (self.position.x - self.size.x/2,
-                         self.position.y - self.size.y/2,
-                         self.size.x, self.size.y))
+        """Default rendering method - only used if child class doesn't override"""
+        # Check if this is the base Entity class or a child class
+        if self.__class__ == Entity:
+            # Basic rectangle rendering as fallback for base Entity
+            pygame.draw.rect(surface, self.color,
+                           (self.position.x - self.size.x/2,
+                            self.position.y - self.size.y/2,
+                            self.size.x, self.size.y))
     
     @property
     def rect(self):

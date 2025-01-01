@@ -41,7 +41,8 @@ class Cat(Entity):
         self.color = (random.randint(150, 200), 
                      random.randint(150, 200), 
                      random.randint(150, 200))
-        self.size = pygame.math.Vector2(20, 20)
+        self.base_size = 20  # Store base size as a number
+        self.size = pygame.math.Vector2(self.base_size, self.base_size)  # Keep Vector2 for compatibility
 
     def update(self, dt):
         """Main update loop"""
@@ -176,7 +177,215 @@ class Cat(Entity):
         self.state = new_state
 
     def render(self, surface):
-        """Render the cat"""
-        pygame.draw.circle(surface, self.color, 
-                         (int(self.position.x), int(self.position.y)), 
-                         self.size) 
+        """Render the cat with simple 2D art"""
+        print(f"Rendering cat {id(self)}")  # Debug print
+        # Get zoom level from game state
+        zoom_level = self.game_state.zoom_level if hasattr(self.game_state, 'zoom_level') else 1.0
+        
+        # Base size scaled by zoom
+        base_size = int(self.base_size * zoom_level)  # Use base_size instead of size.x
+        
+        # Create a surface for the cat with transparency
+        cat_surface = pygame.Surface((base_size * 3, base_size * 3), pygame.SRCALPHA)
+        
+        # Colors
+        body_color = self.color
+        ear_color = (min(body_color[0] + 30, 255), 
+                    min(body_color[1] + 30, 255), 
+                    min(body_color[2] + 30, 255))
+        
+        # Draw body (circle)
+        pygame.draw.circle(cat_surface, body_color, 
+                          (base_size * 1.5, base_size * 1.5), 
+                          base_size)
+        
+        # Draw ears (triangles)
+        ear_points_left = [
+            (base_size, base_size),
+            (base_size * 0.7, base_size * 0.5),
+            (base_size * 1.3, base_size * 0.7)
+        ]
+        ear_points_right = [
+            (base_size * 2, base_size),
+            (base_size * 1.7, base_size * 0.7),
+            (base_size * 2.3, base_size * 0.5)
+        ]
+        pygame.draw.polygon(cat_surface, ear_color, ear_points_left)
+        pygame.draw.polygon(cat_surface, ear_color, ear_points_right)
+        
+        # Draw eyes (small circles)
+        eye_color = (50, 50, 50)  # Dark grey
+        eye_size = max(2, int(base_size * 0.2))
+        pygame.draw.circle(cat_surface, eye_color,
+                          (int(base_size * 1.2), int(base_size * 1.3)),
+                          eye_size)
+        pygame.draw.circle(cat_surface, eye_color,
+                          (int(base_size * 1.8), int(base_size * 1.3)),
+                          eye_size)
+        
+        # Draw nose (small triangle)
+        nose_points = [
+            (base_size * 1.5, base_size * 1.5),
+            (base_size * 1.4, base_size * 1.6),
+            (base_size * 1.6, base_size * 1.6)
+        ]
+        pygame.draw.polygon(cat_surface, (255, 192, 203), nose_points)  # Pink nose
+        
+        # Draw whiskers (lines)
+        whisker_color = (200, 200, 200)  # Light grey
+        whisker_length = base_size * 0.8
+        whisker_start_left = (base_size * 1.2, base_size * 1.6)
+        whisker_start_right = (base_size * 1.8, base_size * 1.6)
+        
+        for angle in [-20, 0, 20]:  # Three whiskers on each side
+            # Left whiskers
+            end_x = whisker_start_left[0] - whisker_length * pygame.math.Vector2(1, 0).rotate(angle).x
+            end_y = whisker_start_left[1] + whisker_length * pygame.math.Vector2(1, 0).rotate(angle).y
+            pygame.draw.line(cat_surface, whisker_color, 
+                            whisker_start_left, (end_x, end_y), 
+                            max(1, int(zoom_level)))
+            
+            # Right whiskers
+            end_x = whisker_start_right[0] + whisker_length * pygame.math.Vector2(1, 0).rotate(-angle).x
+            end_y = whisker_start_right[1] + whisker_length * pygame.math.Vector2(1, 0).rotate(-angle).y
+            pygame.draw.line(cat_surface, whisker_color, 
+                            whisker_start_right, (end_x, end_y), 
+                            max(1, int(zoom_level)))
+        
+        # Draw the cat at its position
+        surface.blit(cat_surface, 
+                    (int(self.position.x - base_size * 1.5),
+                     int(self.position.y - base_size * 1.5)))
+        
+        # Draw health bar if damaged
+        if self.health < self.max_health:
+            health_width = (base_size * 2 * self.health) / self.max_health
+            pygame.draw.rect(surface, (255, 0, 0),
+                            (self.position.x - base_size,
+                             self.position.y - base_size * 2,
+                             base_size * 2, max(2, int(zoom_level * 2))))
+            pygame.draw.rect(surface, (0, 255, 0),
+                            (self.position.x - base_size,
+                             self.position.y - base_size * 2,
+                             health_width, max(2, int(zoom_level * 2))))
+
+    def take_damage(self, amount):
+        """Handle taking damage"""
+        if self.is_dead:
+            return
+            
+        print(f"Cat {id(self)} taking {amount} damage")
+        self.health = max(0, self.health - amount)
+        
+        if self.health <= 0:
+            self.die()
+            
+    def die(self):
+        """Handle death"""
+        if self.is_dead:
+            return
+            
+        print(f"Cat {id(self)} died")
+        self.is_dead = True
+        self.active = False
+        
+        # Stop all current actions
+        self.movement_handler.stop()
+        if self.task_handler:
+            self.task_handler.stop() 
+
+    def render_with_offset(self, surface, camera_x, camera_y):
+        """Render the cat with camera offset and zoom"""
+        # Get zoom level from game state
+        zoom_level = self.game_state.zoom_level
+        
+        # Calculate screen position
+        screen_x = (self.position.x - camera_x) * zoom_level
+        screen_y = (self.position.y - camera_y) * zoom_level
+        
+        # Base size scaled by zoom
+        base_size = int(self.base_size * zoom_level)
+        
+        # Create a surface for the cat with transparency
+        cat_surface = pygame.Surface((base_size * 3, base_size * 3), pygame.SRCALPHA)
+        
+        # Colors
+        body_color = self.color
+        ear_color = (min(body_color[0] + 30, 255), 
+                    min(body_color[1] + 30, 255), 
+                    min(body_color[2] + 30, 255))
+        
+        # Draw body (circle)
+        pygame.draw.circle(cat_surface, body_color, 
+                          (base_size * 1.5, base_size * 1.5), 
+                          base_size)
+        
+        # Draw ears (triangles)
+        ear_points_left = [
+            (base_size, base_size),
+            (base_size * 0.7, base_size * 0.5),
+            (base_size * 1.3, base_size * 0.7)
+        ]
+        ear_points_right = [
+            (base_size * 2, base_size),
+            (base_size * 1.7, base_size * 0.7),
+            (base_size * 2.3, base_size * 0.5)
+        ]
+        pygame.draw.polygon(cat_surface, ear_color, ear_points_left)
+        pygame.draw.polygon(cat_surface, ear_color, ear_points_right)
+        
+        # Draw eyes (small circles)
+        eye_color = (50, 50, 50)  # Dark grey
+        eye_size = max(2, int(base_size * 0.2))
+        pygame.draw.circle(cat_surface, eye_color,
+                          (int(base_size * 1.2), int(base_size * 1.3)),
+                          eye_size)
+        pygame.draw.circle(cat_surface, eye_color,
+                          (int(base_size * 1.8), int(base_size * 1.3)),
+                          eye_size)
+        
+        # Draw nose (small triangle)
+        nose_points = [
+            (base_size * 1.5, base_size * 1.5),
+            (base_size * 1.4, base_size * 1.6),
+            (base_size * 1.6, base_size * 1.6)
+        ]
+        pygame.draw.polygon(cat_surface, (255, 192, 203), nose_points)  # Pink nose
+        
+        # Draw whiskers (lines)
+        whisker_color = (200, 200, 200)  # Light grey
+        whisker_length = base_size * 0.8
+        whisker_start_left = (base_size * 1.2, base_size * 1.6)
+        whisker_start_right = (base_size * 1.8, base_size * 1.6)
+        
+        for angle in [-20, 0, 20]:  # Three whiskers on each side
+            # Left whiskers
+            end_x = whisker_start_left[0] - whisker_length * pygame.math.Vector2(1, 0).rotate(angle).x
+            end_y = whisker_start_left[1] + whisker_length * pygame.math.Vector2(1, 0).rotate(angle).y
+            pygame.draw.line(cat_surface, whisker_color, 
+                            whisker_start_left, (end_x, end_y), 
+                            max(1, int(zoom_level)))
+            
+            # Right whiskers
+            end_x = whisker_start_right[0] + whisker_length * pygame.math.Vector2(1, 0).rotate(-angle).x
+            end_y = whisker_start_right[1] + whisker_length * pygame.math.Vector2(1, 0).rotate(-angle).y
+            pygame.draw.line(cat_surface, whisker_color, 
+                            whisker_start_right, (end_x, end_y), 
+                            max(1, int(zoom_level)))
+        
+        # Draw the cat at its position (using screen coordinates)
+        surface.blit(cat_surface, 
+                    (screen_x - base_size * 1.5,
+                     screen_y - base_size * 1.5))
+        
+        # Draw health bar if damaged
+        if self.health < self.max_health:
+            health_width = (base_size * 2 * self.health) / self.max_health
+            pygame.draw.rect(surface, (255, 0, 0),
+                            (screen_x - base_size,
+                             screen_y - base_size * 2,
+                             base_size * 2, max(2, int(zoom_level * 2))))
+            pygame.draw.rect(surface, (0, 255, 0),
+                            (screen_x - base_size,
+                             screen_y - base_size * 2,
+                             health_width, max(2, int(zoom_level * 2)))) 
