@@ -12,3 +12,8 @@ MAP_HEIGHT = 100
 # Colors (RGB)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+
+# Camera and zoom settings
+MIN_ZOOM = 0.5  # Maximum zoom out (half size)
+MAX_ZOOM = 2.0  # Maximum zoom in (double size)
+ZOOM_SPEED = 0.1  # How much to zoom per scroll
