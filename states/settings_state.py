@@ -6,22 +6,27 @@ from utils.config import *
 from utils.settings_manager import load_settings, save_settings
 
 class SettingsState(State):
+    """
+    Settings menu state handling game configuration options.
+    Features volume control and persistent settings storage.
+    """
     def __init__(self, game):
         super().__init__(game)
         self.font = pygame.font.Font(None, 64)
         
-        # Load saved settings
+        # Load saved settings from storage
         self.settings = load_settings()
         
-        # Settings options
+        # Settings configuration
         self.options = [f'Volume: {self.settings["volume"]}%', 'Back']
         self.selected_option = 0
         self.volume = self.settings["volume"]
         
-        # Create text surfaces
+        # Create text surfaces for menu options
         self.text_surfaces = []
         self.text_rects = []
         
+        # Initialize menu text elements
         for i, option in enumerate(self.options):
             text = self.font.render(option, True, WHITE)
             rect = text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 3 + i * 80))
@@ -29,6 +34,10 @@ class SettingsState(State):
             self.text_rects.append(rect)
     
     def handle_events(self, events):
+        """
+        Handle settings menu navigation and value adjustments.
+        Supports keyboard controls for menu interaction and volume control.
+        """
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -49,6 +58,10 @@ class SettingsState(State):
                         self.update_volume_text()
     
     def update_volume_text(self):
+        """
+        Update volume display and save changes.
+        Persists volume setting to storage.
+        """
         self.options[0] = f'Volume: {self.volume}%'
         self.text_surfaces[0] = self.font.render(self.options[0], True, WHITE)
         # Save settings when volume changes
@@ -56,14 +69,22 @@ class SettingsState(State):
         save_settings(self.settings)
     
     def return_to_previous(self):
+        """
+        Return to the previous menu state.
+        Handles both pause menu and main menu returns.
+        """
         # Return to pause menu if we came from there, otherwise main menu
         previous_state = 'pause' if isinstance(self.game.states['pause'], PauseMenuState) else 'menu'
         self.game.change_state(previous_state)
-
+        
     def update(self, dt):
         pass
         
     def render(self, screen):
+        """
+        Render settings menu with interactive elements.
+        Displays volume control and navigation options.
+        """
         # Draw dark background
         screen.fill(BLACK)
         
@@ -72,7 +93,7 @@ class SettingsState(State):
         title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 6))
         screen.blit(title, title_rect)
         
-        # Draw options
+        # Draw options with selection highlight
         for i, (text, rect) in enumerate(zip(self.text_surfaces, self.text_rects)):
             color = (255, 255, 0) if i == self.selected_option else WHITE
             text = self.font.render(self.options[i], True, color)

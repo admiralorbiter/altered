@@ -3,22 +3,33 @@ from typing import Tuple, List
 
 @dataclass
 class ElectricalComponent:
+    """
+    Represents an electrical component in the power grid system.
+    Components can be wires, power sources, or consumers, each with their own
+    power handling characteristics and connection states.
+    """
     type: str  # 'wire', 'source', 'consumer'
-    capacity: float = 0.0  # Power capacity
-    current_power: float = 0.0
-    connected_tiles: List[Tuple[int, int]] = field(default_factory=list)
-    under_construction: bool = True  # This is the default, but we explicitly set False in wire_system.py
+    capacity: float = 0.0  # Maximum power that can flow through this component
+    current_power: float = 0.0  # Current power level flowing through component
+    connected_tiles: List[Tuple[int, int]] = field(default_factory=list)  # Adjacent connected components
+    under_construction: bool = True  # Construction state for visual feedback
     
 
 @dataclass
 class Tile:
-    id: int
-    name: str
-    color: Tuple[int, int, int]
-    walkable: bool = True
-    description: str = ""
+    """
+    Represents a basic terrain tile with properties that affect gameplay mechanics.
+    Each tile type has unique characteristics like walkability and appearance.
+    """
+    id: int  # Unique identifier for the tile type
+    name: str  # Human-readable name
+    color: Tuple[int, int, int]  # RGB color for rendering
+    walkable: bool = True  # Whether entities can move through this tile
+    description: str = ""  # Descriptive text for UI/tooltips
     
-# Define tile constants
+# Terrain Tiles
+# These represent the basic building blocks of the game world
+
 TILE_FLOOR = Tile(
     id=0,
     name="floor",
@@ -59,10 +70,13 @@ TILE_BARRIER = Tile(
     description="Energy barrier"
 )
 
+# Electrical Infrastructure Tiles
+# These tiles represent various components of the power distribution system
+
 TILE_WIRE = Tile(
     id=10,
     name="wire",
-    color=(255, 255, 0),  # Yellow for visibility
+    color=(255, 255, 0),  # Yellow for high visibility
     walkable=True,
     description="Basic electrical wire"
 )

@@ -8,36 +8,40 @@ import random
 from utils.pathfinding import find_path
 
 class BaseEnemy(Entity, ABC):
+    """
+    Abstract base class for all enemy entities in the game.
+    Provides core enemy functionality including AI states, pathfinding, and capture mechanics.
+    """
     def __init__(self, x, y):
         super().__init__(x, y)
         
-        # Add minimum distance to maintain from target
-        self.min_distance = TILE_SIZE * 0.9  # Slightly less than one tile
+        # Movement and positioning constraints
+        self.min_distance = TILE_SIZE * 0.9  # Minimum distance to maintain from target
         
-        # AI properties
-        self.state = 'idle'
-        self.target = None
-        self.path = None
-        self.current_waypoint = 0
-        self.moving = False
-        self.target_position = None
-        self.path_update_timer = 0
+        # AI state management
+        self.state = 'idle'  # Current AI state: 'idle', 'patrol', 'chase', 'attack'
+        self.target = None   # Current target entity (alien or cat)
+        self.path = None     # Current pathfinding route
+        self.current_waypoint = 0  # Index of current waypoint in path
+        self.moving = False  # Whether enemy is currently moving
+        self.target_position = None  # Destination position
+        self.path_update_timer = 0   # Timer for path recalculation
         
-        # Patrol properties
-        self.patrol_points = []
-        self.current_patrol_index = 0
+        # Patrol behavior configuration
+        self.patrol_points = []  # List of patrol waypoints
+        self.current_patrol_index = 0  # Current patrol point index
         
-        # Configurable properties
-        self.wander_radius = 5  # tiles
-        self.detection_range = TILE_SIZE * 5
-        self.attack_range = TILE_SIZE * 1.5
+        # Detection and combat properties
+        self.wander_radius = 5  # Random movement radius in tiles
+        self.detection_range = TILE_SIZE * 5  # Range for detecting targets
+        self.attack_range = TILE_SIZE * 1.5   # Range for initiating attacks
         
-        # Enhance capture-related attributes
-        self.capture_state = CaptureState.NONE
-        self.unconscious_timer = 0
-        self.carrier = None
-        self.awareness_level = 0
-        self.struggle_chance = 0.1  # 10% chance to break free per second
+        # Capture system integration
+        self.capture_state = CaptureState.NONE  # Current capture status
+        self.unconscious_timer = 0  # Timer for unconscious state
+        self.carrier = None  # Reference to entity carrying this enemy
+        self.awareness_level = 0  # Awareness of surroundings (0-1)
+        self.struggle_chance = 0.1  # Probability to break free when captured
         
     def set_patrol_points(self, points):
         """Set patrol route for the enemy"""
@@ -61,7 +65,14 @@ class BaseEnemy(Entity, ABC):
             )) 
         
     def update_ai_state(self, dt, game_state):
-        """Update AI state based on conditions"""
+        """
+        Updates the enemy's AI state based on nearby targets and current conditions.
+        Handles target detection, state transitions, and combat engagement.
+        
+        Args:
+            dt (float): Delta time since last update
+            game_state: Current game state containing level and entity information
+        """
         # Find nearest target (alien or cat)
         nearest_target = None
         min_distance = float('inf')
@@ -98,7 +109,16 @@ class BaseEnemy(Entity, ABC):
             self.target = None 
 
     def handle_collision_separation(self, game_state):
-        """Handle separation when entities overlap"""
+        """
+        Handles collision resolution between entities to prevent overlapping.
+        Implements basic separation behavior when entities get too close.
+        
+        Args:
+            game_state: Current game state for entity access
+            
+        Returns:
+            bool: True if separation was performed
+        """
         current_tile = (int(self.position.x // TILE_SIZE), 
                        int(self.position.y // TILE_SIZE))
         

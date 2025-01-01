@@ -21,14 +21,18 @@ from systems.wire_system import WireSystem
 from systems.task_system import TaskSystem
 
 class GameState(State):
+    """
+    Main gameplay state handling level management, systems coordination,
+    and player interaction. Manages the active game world and its entities.
+    """
     def __init__(self, game):
         super().__init__(game)
         
-        # Initialize game state
+        # Core state properties
         self.zoom_level = 1.0
         self.camera_x = 0
         self.camera_y = 0
-        self.wire_mode = False
+        self.wire_mode = False  # Toggle for wire placement mode
         
         # Initialize UI elements list before adding elements
         self.ui_elements = []
@@ -93,7 +97,13 @@ class GameState(State):
         self.change_level('ufo')
 
     def handle_events(self, events):
-        # Handle UI elements first
+        """
+        Process input events for gameplay.
+        Handles UI interaction, camera control, and gameplay actions.
+        
+        Args:
+            events (list): List of pygame events to process
+        """
         for event in events:
             # Check if any UI element handled the event
             ui_handled = False
@@ -154,8 +164,14 @@ class GameState(State):
                         self.camera_y += (mouse_y / old_zoom) * (1 - zoom_factor)
 
     def update(self, dt):
+        """
+        Update game state including level, camera, and systems.
+        
+        Args:
+            dt (float): Delta time since last update
+        """
         if self.current_level:
-            
+            # Update core systems
             self.capture_system.update(dt)
             self.current_level.update(dt)
             
@@ -178,13 +194,19 @@ class GameState(State):
 
         self.hud.update(dt)
         self.ai_system.update(dt, self)
-
+    
     def render(self, screen):
-        # Fill background
+        """
+        Render the game world, entities, and UI.
+        Handles layered rendering with proper camera offset.
+        
+        Args:
+            screen (pygame.Surface): Target surface for rendering
+        """
         screen.fill(BLACK)
         
         if self.current_level:
-            # Create a surface for the game world
+            # Create world view
             world_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
             world_surface.fill(BLACK)
             

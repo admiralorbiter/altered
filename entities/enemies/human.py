@@ -8,26 +8,30 @@ import random
 import math
 
 class Human(BaseEnemy):
+    """
+    Human enemy type that extends BaseEnemy with specific behaviors and attributes.
+    Features unique capture mechanics, visual representation, and combat stats.
+    """
     def __init__(self, x, y):
         # Convert tile coordinates to pixel coordinates
-        pixel_x = (x + 0.5) * TILE_SIZE
+        pixel_x = (x + 0.5) * TILE_SIZE  # Center in tile
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
         
-        # Human-specific stats
-        self.max_health = 80
+        # Combat statistics
+        self.max_health = 80  # Maximum health points
         self.health = self.max_health
-        self.attack_power = 15
-        self.speed = 250
-        self.attack_cooldown = 1.0
-        self.attack_timer = 0
+        self.attack_power = 15  # Damage dealt per attack
+        self.speed = 250  # Movement speed in pixels/second
+        self.attack_cooldown = 1.0  # Time between attacks
+        self.attack_timer = 0  # Current attack cooldown
         
         # Visual properties
-        self.color = (200, 150, 150, 200)
+        self.color = (200, 150, 150, 200)  # RGBA color for rendering
         
-        # Add human-specific capture attributes
-        self.struggle_chance = 0.15  # Humans have higher chance to break free
-        self.unconscious_duration = 8.0  # Humans stay unconscious for 8 seconds
+        # Human-specific capture mechanics
+        self.struggle_chance = 0.15  # Higher chance to break free than base
+        self.unconscious_duration = 8.0  # Longer unconscious duration
         
     def attack(self, target):
         if self.attack_timer <= 0:
@@ -57,6 +61,14 @@ class Human(BaseEnemy):
         super().update(dt)
 
     def render_with_offset(self, surface, camera_x, camera_y):
+        """
+        Renders the human enemy with all visual effects including capture states,
+        detection range, health bar, and character model.
+        
+        Args:
+            surface (pygame.Surface): Target surface for rendering
+            camera_x, camera_y (float): Camera offset coordinates
+        """
         if not self.active:
             return
             
@@ -194,6 +206,14 @@ class Human(BaseEnemy):
                                screen_y - 30 * zoom_level))
 
     def update_ai_state(self, dt, game_state):
+        """
+        Extends base AI state update with human-specific pathfinding behavior.
+        Updates movement paths more frequently during chase state.
+        
+        Args:
+            dt (float): Delta time
+            game_state: Current game state
+        """
         super().update_ai_state(dt, game_state)
         
         if self.state == 'chase' and self.target:
@@ -211,6 +231,13 @@ class Human(BaseEnemy):
                 self.path_update_timer = 0.5  # Update path every 0.5 seconds
         
     def set_target(self, tile_x, tile_y):
+        """
+        Sets a new movement target for the human and calculates a path.
+        Only processes if the human is currently selected.
+        
+        Args:
+            tile_x, tile_y (int): Target tile coordinates
+        """
         if not self.selected:
             return
         

@@ -6,31 +6,38 @@ from utils.config import *
 from utils.pathfinding import find_path
 
 class Alien(Entity):
+    """
+    Player-controlled alien entity with advanced movement, capture mechanics,
+    and visual effects. Features detailed rendering with body parts and animations.
+    """
     def __init__(self, x, y, color=(255, 192, 203, 128)):
-        # Convert tile coordinates to pixel coordinates
+        # Convert tile coordinates to pixel coordinates for centered positioning
         pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
         
-        self.color = color
-        self.speed = 300
-        self.selected = False
-        self.target_position = None
-        self.current_tile = (x, y)
-        self.moving = False
-        self.path = None
-        self.current_waypoint = 0
+        # Visual properties
+        self.color = color  # Base color with alpha for transparency
         
-        # Add health and morale attributes
+        # Movement and control properties
+        self.speed = 300  # Movement speed in pixels/second
+        self.selected = False  # Selection state for player control
+        self.target_position = None  # Target position for movement
+        self.current_tile = (x, y)  # Current tile coordinates
+        self.moving = False  # Movement state
+        self.path = None  # Current pathfinding path
+        self.current_waypoint = 0  # Index in current path
+        
+        # Status attributes
         self.max_health = 100
         self.health = self.max_health
         self.max_morale = 100
         self.morale = self.max_morale
         
-        # Add capture-related attributes
-        self.capture_range = TILE_SIZE * 2  # 2 tiles range for capture
-        self.capture_strength = 50  # Base capture strength
-        self.carrying_target = None
+        # Capture mechanics
+        self.capture_range = TILE_SIZE * 2  # Range for capturing targets
+        self.capture_strength = 50  # Base capture effectiveness
+        self.carrying_target = None  # Currently carried entity
         
     def select(self):
         self.selected = True
@@ -62,7 +69,15 @@ class Alien(Entity):
             self.moving = True
     
     def update(self, dt):
+        """
+        Update alien state including movement and path following.
+        Handles waypoint navigation and task completion.
+        
+        Args:
+            dt (float): Delta time since last update
+        """
         if self.target_position and self.moving:
+            # Calculate movement direction and distance
             direction = self.target_position - self.position
             distance = direction.length()
             
@@ -87,17 +102,25 @@ class Alien(Entity):
                         self.wire_task = None
                     self.deselect()
             else:
-                # Normalize direction and apply speed
+                # Apply movement with speed and time
                 normalized_dir = direction.normalize()
                 movement = normalized_dir * self.speed * dt
                 
-                # If we would overshoot the target, just snap to it
+                # Prevent overshooting target
                 if movement.length() > distance:
                     self.position = self.target_position
                 else:
                     self.position += movement
     
     def render_with_offset(self, surface, camera_x, camera_y):
+        """
+        Render the alien with detailed body parts and effects.
+        Includes selection indicator and movement path visualization.
+        
+        Args:
+            surface (pygame.Surface): Target surface for rendering
+            camera_x, camera_y (float): Camera offset coordinates
+        """
         # Get zoom level from game state
         zoom_level = self.game_state.zoom_level
         
@@ -173,15 +196,22 @@ class Alien(Entity):
         return distance <= self.capture_range
         
     def attempt_capture(self, target):
-        """Attempt to capture a target"""
+        """
+        Attempt to capture a target entity.
+        Handles both knockout and carrying mechanics.
+        
+        Args:
+            target: Entity to attempt capturing
+            
+        Returns:
+            bool: True if capture attempt was successful
+        """
         if not self.can_capture(target):
             return False
             
-        # First knock them unconscious
+        # Handle different capture states
         if target.capture_state == CaptureState.NONE:
-            if self.game_state.capture_system.attempt_knockout(self, target):
-                return True
-        # Then start carrying if they're unconscious
+            return self.game_state.capture_system.attempt_knockout(self, target)
         elif target.capture_state == CaptureState.UNCONSCIOUS:
             return self.game_state.capture_system.start_carrying(self, target)
         return False

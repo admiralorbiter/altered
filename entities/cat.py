@@ -8,45 +8,55 @@ from utils.task_handler import TaskHandler
 from utils.movement_handler import MovementHandler
 
 class Cat(Entity):
+    """
+    Autonomous cat entity with complex AI behaviors, hunger system, and task handling.
+    Features state-based decision making and dynamic movement patterns.
+    """
     def __init__(self, x, y, game_state):
         # Convert tile coordinates to pixel coordinates
         pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
         
-        # Basic stats
+        # Basic stats and attributes
         self.health = 100
         self.max_health = 100
         self.attack_power = 10
-        self.speed = random.uniform(250, 350)  # Varying speed between cats
+        self.speed = random.uniform(250, 350)  # Each cat has unique speed
         self.morale = 100
         
-        # Hunger system
-        self.hunger = 25  # Start full
+        # Hunger system configuration
+        self.hunger = 25  # Start partially hungry
         self.max_hunger = 100
-        self.hunger_rate = 2  # Lose 2 hunger per second
+        self.hunger_rate = 2  # Hunger points lost per second
         self.critical_hunger = 10  # Percentage when cat starts seeking food
         self.is_dead = False
         
-        # State and handlers
+        # AI state management
         self.state = EntityState.WANDERING
         self.game_state = game_state
-        self.task_handler = TaskHandler(self)
-        self.movement_handler = MovementHandler(self, game_state)
+        self.task_handler = TaskHandler(self)  # Manages work assignments
+        self.movement_handler = MovementHandler(self, game_state)  # Handles pathfinding
         
-        # Timers
-        self.wander_timer = random.uniform(3.0, 8.0)
-        self.idle_timer = 0
+        # Behavior timers
+        self.wander_timer = random.uniform(3.0, 8.0)  # Random wander duration
+        self.idle_timer = 0  # Time to remain idle
         
-        # Visual properties
-        self.color = (random.randint(150, 200), 
+        # Visual customization
+        self.color = (random.randint(150, 200),  # Random fur color
                      random.randint(150, 200), 
                      random.randint(150, 200))
-        self.base_size = 20  # Store base size as a number
-        self.size = pygame.math.Vector2(self.base_size, self.base_size)  # Keep Vector2 for compatibility
+        self.base_size = 20  # Physical size for collision
+        self.size = pygame.math.Vector2(self.base_size, self.base_size)
 
     def update(self, dt):
-        """Main update loop"""
+        """
+        Main update loop handling state transitions and behaviors.
+        Prioritizes survival (hunger) over other activities.
+        
+        Args:
+            dt (float): Delta time since last update
+        """
         if self.is_dead:
             return
 
@@ -77,7 +87,10 @@ class Cat(Entity):
         self.task_handler.update(dt)
 
     def _update_wandering(self, dt):
-        """Handle wandering state"""
+        """
+        Controls random exploration behavior between tasks.
+        Includes task checking and random movement patterns.
+        """
         # Check for tasks first
         if not self.task_handler.has_task():
             task = self.game_state.task_system.get_available_task(self)
@@ -96,7 +109,10 @@ class Cat(Entity):
             self.movement_handler.start_random_movement()
 
     def _update_working(self, dt):
-        """Handle working state"""
+        """
+        Handles work-related behaviors including task navigation and completion.
+        Manages transitions between working and other states based on task status.
+        """
         if not self.task_handler.has_task():
             self.movement_handler.stop()
             self._switch_state(EntityState.WANDERING)
@@ -137,7 +153,10 @@ class Cat(Entity):
                 self.wander_timer = random.uniform(3.0, 8.0)
 
     def _update_seeking_food(self, dt):
-        """Handle food seeking state"""
+        """
+        Manages food-seeking behavior when hunger is critical.
+        Includes food detection, pathfinding, and consumption logic.
+        """
         # Find nearest food item
         nearest_food = None
         min_distance = float('inf')
@@ -173,7 +192,10 @@ class Cat(Entity):
             self.wander_timer = random.uniform(3.0, 8.0)
 
     def _update_idle(self, dt):
-        """Handle idle state"""
+        """
+        Manages idle state behavior and transitions.
+        Checks for new tasks and handles timing for state changes.
+        """
         # Check for tasks first
         if not self.task_handler.has_task():
             task = self.game_state.task_system.get_available_task(self)
@@ -189,7 +211,10 @@ class Cat(Entity):
             self.wander_timer = random.uniform(3.0, 8.0)
 
     def _update_hunger(self, dt):
-        """Update hunger system"""
+        """
+        Updates hunger system and triggers survival behaviors.
+        Handles starvation damage and state transitions when hungry.
+        """
         self.hunger = max(0, self.hunger - self.hunger_rate * dt)
         
         # If hunger is at 0, start taking damage

@@ -9,19 +9,27 @@ import random
 import pygame
 
 class UfoLevel(BaseLevel):
+    """
+    UFO-themed level featuring alien crew, cats, and food resources.
+    Implements circular UFO layout with specific crew positions.
+    """
     def __init__(self, game_state):
         super().__init__(game_state)
-        self.cats = []  # Add cats list
+        self.cats = []  # List of autonomous cat entities
         
     def initialize(self):
-        # Create UFO layout
+        """
+        Set up initial UFO level state including map layout,
+        crew positions, cats, and food resources.
+        """
+        # Create UFO layout with circular walls
         self._create_ufo_map()
         
-        # Create crew positions
+        # Set up crew positions in bridge formation
         center_x = MAP_WIDTH // 2
         center_y = MAP_HEIGHT // 2
         
-        # Create aliens in UFO bridge positions
+        # Define crew positions and colors
         crew_positions = [
             (center_x, center_y),      # Captain (pink)
             (center_x - 2, center_y),  # Navigation (blue)
@@ -31,27 +39,29 @@ class UfoLevel(BaseLevel):
         ]
         
         crew_colors = [
-            (255, 192, 203, 128),  # Pink
-            (100, 149, 237, 128),  # Blue
-            (144, 238, 144, 128),  # Green
-            (147, 112, 219, 128),  # Purple
-            (255, 165, 0, 128),    # Orange
+            (255, 192, 203, 128),  # Pink (semi-transparent)
+            (100, 149, 237, 128),  # Blue (semi-transparent)
+            (144, 238, 144, 128),  # Green (semi-transparent)
+            (147, 112, 219, 128),  # Purple (semi-transparent)
+            (255, 165, 0, 128),    # Orange (semi-transparent)
         ]
         
+        # Create alien crew members
         for pos, color in zip(crew_positions, crew_colors):
             alien = Alien(pos[0], pos[1], color)
             alien.game_state = self.game_state
             self.aliens.append(alien)
             self.entity_manager.add_entity(alien)
             
-        # Add cats around the UFO
+        # Add cats in corner positions around UFO
         cat_positions = [
-            (center_x - 4, center_y - 4),
-            (center_x + 4, center_y - 4),
-            (center_x - 4, center_y + 4),
-            (center_x + 4, center_y + 4),
+            (center_x - 4, center_y - 4),  # Top-left
+            (center_x + 4, center_y - 4),  # Top-right
+            (center_x - 4, center_y + 4),  # Bottom-left
+            (center_x + 4, center_y + 4),  # Bottom-right
         ]
         
+        # Create cat entities
         for x, y in cat_positions:
             cat = Cat(x, y, self.game_state)
             self.cats.append(cat)
@@ -77,38 +87,46 @@ class UfoLevel(BaseLevel):
                     break
     
     def _create_ufo_map(self):
-        # Fill with floor tiles
+        """
+        Generate circular UFO layout with walls and barriers.
+        Creates walkable interior and unwalkable exterior.
+        """
+        # Fill entire map with floor tiles initially
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 self.tilemap.set_tile(x, y, TILE_FLOOR.name)
         
-        # Create circular UFO shape
+        # Create circular UFO boundary
         center_x = MAP_WIDTH // 2
         center_y = MAP_HEIGHT // 2
         radius = min(MAP_WIDTH, MAP_HEIGHT) // 3
         
-        # Add walls for UFO outline
+        # Add walls and barriers based on distance from center
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 dx = x - center_x
                 dy = y - center_y
                 distance = (dx * dx + dy * dy) ** 0.5
                 
-                # Create circular wall boundary
                 if abs(distance - radius) < 1.5:
-                    self.tilemap.set_tile(x, y, TILE_WALL.name)
-                # Make outside of UFO unwalkable
+                    self.tilemap.set_tile(x, y, TILE_WALL.name)  # UFO hull
                 elif distance > radius:
-                    self.tilemap.set_tile(x, y, TILE_BARRIER.name)
+                    self.tilemap.set_tile(x, y, TILE_BARRIER.name)  # Space
     
     def update(self, dt):
-        """Update level state"""
+        """
+        Update level state including random cat movement.
+        
+        Args:
+            dt (float): Delta time since last update
+        """
         super().update(dt)
         
-        # Update all cats
+        # Random cat movement
         for cat in self.cats:
             if (not cat.movement_handler.moving and 
-                random.random() < 0.02):  # 2% chance to start moving each frame
+                random.random() < 0.02):  # 2% chance per frame
                 cat.movement_handler.start_random_movement()
         
+        # Update all entities
         self.entity_manager.update(dt) 

@@ -7,12 +7,19 @@ from entities.manager import EntityManager
 from utils.config import BLACK, MAP_HEIGHT, MAP_WIDTH, TILE_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH
 
 class BaseLevel(ABC):
+    """
+    Abstract base class for game levels. Provides core functionality for
+    entity management, rendering, and input handling.
+    """
     def __init__(self, game_state):
+        # Core level components
         self.game_state = game_state
-        self.tilemap = TileMap(MAP_WIDTH, MAP_HEIGHT, game_state)
-        self.entity_manager = EntityManager(game_state)
-        self.aliens = []
-        self.enemies = []
+        self.tilemap = TileMap(MAP_WIDTH, MAP_HEIGHT, game_state)  # Level layout
+        self.entity_manager = EntityManager(game_state)  # Manages all entities
+        
+        # Entity collections for quick access
+        self.aliens = []  # Player-controlled aliens
+        self.enemies = []  # Enemy entities
         
     @abstractmethod
     def initialize(self):
@@ -25,19 +32,26 @@ class BaseLevel(ABC):
         pass
         
     def render(self, screen, camera_x, camera_y):
-        """Render the level and all its entities"""
+        """
+        Render the level and all its entities with camera offset.
+        Handles layered rendering (background, tiles, entities).
+        
+        Args:
+            screen (pygame.Surface): Target surface for rendering
+            camera_x, camera_y (float): Camera offset coordinates
+        """
         # Fill background
         screen.fill(BLACK)
         
-        # Render tilemap
+        # Render tilemap first (bottom layer)
         self.tilemap.render(screen, camera_x, camera_y)
         
-        # Render items
+        # Render items (middle layer)
         for item in self.entity_manager.items:
             if item.active:
                 item.render_with_offset(screen, camera_x, camera_y)
         
-        # Render entities with capture indicators
+        # Render entities with capture indicators (top layer)
         for entity in self.entity_manager.entities:
             if not entity.active:
                 continue
@@ -53,10 +67,15 @@ class BaseLevel(ABC):
                 pygame.draw.circle(screen, (255, 255, 0, 64),
                                  (int(screen_x), int(screen_y)),
                                  int(capture_radius), 1)
-        
+                                 
     def handle_click(self, tile_x, tile_y):
-        """Handle mouse click events"""
-        # Check if clicking on any alien
+        """
+        Handle mouse click events for entity selection and movement.
+        
+        Args:
+            tile_x, tile_y (int): Clicked tile coordinates
+        """
+        # Check if clicking on any alien for selection
         clicked_alien = None
         for alien in self.aliens:
             alien_tile_x = int(alien.position.x // TILE_SIZE)
@@ -66,7 +85,7 @@ class BaseLevel(ABC):
                 break
         
         if clicked_alien:
-            # Deselect all other aliens
+            # Deselect all other aliens when one is clicked
             for alien in self.aliens:
                 if alien != clicked_alien:
                     alien.deselect()

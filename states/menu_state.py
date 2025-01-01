@@ -5,8 +5,13 @@ from utils.config import *
 from states.slot_select_state import SlotSelectState
 
 class MenuState(State):
+    """
+    Main menu state handling game entry points and level selection.
+    Features psychedelic background effect and interactive menu options.
+    """
     def __init__(self, game):
         super().__init__(game)
+        # Font and title setup
         self.font = pygame.font.Font(None, 74)
         self.title = self.font.render("ALTERED", True, WHITE)
         self.title_rect = self.title.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 4))
@@ -15,6 +20,7 @@ class MenuState(State):
         self.main_menu = ['New Game', 'Load Game', 'Quit']
         self.level_menu = ['UFO Level', 'Abduction Level', 'Test Level', 'Back']
         
+        # Menu state tracking
         self.current_menu = self.main_menu
         self.selected_option = 0
         self.in_level_select = False
@@ -27,6 +33,10 @@ class MenuState(State):
         self.surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
     
     def update_menu_surfaces(self):
+        """
+        Update menu text surfaces and positions.
+        Called when switching between menus or initializing.
+        """
         self.option_surfaces = []
         self.option_rects = []
         for i, option in enumerate(self.current_menu):
@@ -36,6 +46,10 @@ class MenuState(State):
             self.option_rects.append(rect)
         
     def handle_events(self, events):
+        """
+        Handle menu navigation and selection events.
+        Supports keyboard controls for menu interaction.
+        """
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
@@ -48,13 +62,19 @@ class MenuState(State):
                     self.return_to_main_menu()
 
     def return_to_main_menu(self):
+        """Return to main menu from level select submenu"""
         self.current_menu = self.main_menu
         self.selected_option = 0
         self.in_level_select = False
         self.update_menu_surfaces()
 
     def handle_selection(self):
+        """
+        Process menu option selection.
+        Handles navigation between menus and game state changes.
+        """
         if not self.in_level_select:
+            # Main menu options
             if self.current_menu[self.selected_option] == 'New Game':
                 self.current_menu = self.level_menu
                 self.selected_option = 0
@@ -83,6 +103,10 @@ class MenuState(State):
         self.time += dt
         
     def render(self, screen):
+        """
+        Render menu with psychedelic background effect.
+        Creates dynamic visual pattern and menu options.
+        """
         # Create psychedelic background
         for x in range(0, WINDOW_WIDTH, 4):
             for y in range(0, WINDOW_HEIGHT, 4):
@@ -104,7 +128,7 @@ class MenuState(State):
         overlay.set_alpha(100)
         screen.blit(overlay, (0, 0))
         
-        # Draw title
+        # Draw title and menu options
         screen.blit(self.title, self.title_rect)
         
         # Draw menu options

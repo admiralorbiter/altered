@@ -11,27 +11,37 @@ from entities.items.food import Food
 from entities.enemies.human import Human
 
 class AbductionLevel(BaseLevel):
+    """
+    Outdoor abduction mission level with multiple aliens, cats to capture,
+    and patrolling human enemies. Features a more open environment with
+    strategic barriers and resource placement.
+    """
     def __init__(self, game_state):
         super().__init__(game_state)
-        self.cats = []  # Add cats list
+        self.cats = []  # List of capturable cat entities
         
     def initialize(self):
-        # Create the map layout
+        """
+        Set up the abduction level with multiple aliens, scattered cats,
+        strategic food placement, and patrolling enemies.
+        """
+        # Create the outdoor environment
         self._create_abduction_map()
         
-        # Create aliens in their starting positions
+        # Position aliens in formation
         center_x = MAP_WIDTH // 2
         center_y = MAP_HEIGHT // 2
         
-        # Create aliens with their colors
+        # Create aliens with distinct roles (indicated by colors)
         alien_configs = [
-            (center_x, center_y, (255, 192, 203, 128)),      # Pink (center)
-            (center_x - 2, center_y - 2, (100, 149, 237, 128)),  # Blue
-            (center_x + 2, center_y - 2, (144, 238, 144, 128)),  # Green
-            (center_x - 2, center_y + 2, (147, 112, 219, 128)),  # Purple
-            (center_x + 2, center_y + 2, (255, 165, 0, 128))     # Orange
+            (center_x, center_y, (255, 192, 203, 128)),      # Pink (leader)
+            (center_x - 2, center_y - 2, (100, 149, 237, 128)),  # Blue (scout)
+            (center_x + 2, center_y - 2, (144, 238, 144, 128)),  # Green (support)
+            (center_x - 2, center_y + 2, (147, 112, 219, 128)),  # Purple (specialist)
+            (center_x + 2, center_y + 2, (255, 165, 0, 128))     # Orange (heavy)
         ]
         
+        # Create alien squad with specialized roles
         for x, y, color in alien_configs:
             alien = Alien(x, y, color)
             alien.game_state = self.game_state
@@ -94,7 +104,11 @@ class AbductionLevel(BaseLevel):
             self.entity_manager.add_entity(human)
     
     def _create_abduction_map(self):
-        # Fill with grass (green)
+        """
+        Generate an outdoor environment with grass, rocks, and strategic barriers.
+        Creates a more open space with tactical positioning options.
+        """
+        # Create base terrain (grass)
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 self.tilemap.set_tile(x, y, TILE_GRASS.name)
@@ -112,15 +126,32 @@ class AbductionLevel(BaseLevel):
             (MAP_WIDTH - 6, 5), (MAP_WIDTH - 6, MAP_HEIGHT - 6)
         ]
         
-        for bx, by in barrier_positions:
-            for dx in range(3):
-                for dy in range(3):
-                    self.tilemap.set_tile(bx + dx, by + dy, TILE_BARRIER.name)
+        # Add vertical wall divisions for tactical gameplay
+        self._add_vertical_walls()
+    
+    def _spawn_food_items(self, center_x, center_y):
+        """
+        Place food items strategically around the map.
+        70% near center for easy access, 30% near barriers for risk/reward.
         
-        # Add vertical barriers (gray)
-        for y in range(MAP_HEIGHT):
-            self.tilemap.set_tile(MAP_WIDTH // 3, y, TILE_WALL.name)
-            self.tilemap.set_tile(2 * MAP_WIDTH // 3, y, TILE_WALL.name)
+        Args:
+            center_x, center_y (int): Center coordinates of the map
+        """
+        radius = 8  # Distribution radius
+        
+        for _ in range(8):  # 8 food items total
+            while True:
+                # Strategic placement logic
+                if random.random() < 0.7:  # 70% near center
+                    x, y = self._get_center_food_position(center_x, center_y, radius)
+                else:  # 30% near barriers
+                    x, y = self._get_barrier_food_position()
+                
+                if self.tilemap.is_walkable(x, y):
+                    food = Food(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2)
+                    food.game_state = self.game_state
+                    self.entity_manager.add_item(food)
+                    break
     
     def update(self, dt):
         self.entity_manager.update(dt)

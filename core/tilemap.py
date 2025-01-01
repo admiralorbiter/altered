@@ -3,7 +3,19 @@ from utils.config import *
 from .tiles import TILES, TILE_FLOOR, Tile, ElectricalComponent
 
 class TileMap:
+    """
+    Manages a 2D grid-based map containing both terrain tiles and electrical components.
+    Handles rendering, tile manipulation, and electrical component placement.
+    """
     def __init__(self, width, height, game_state):
+        """
+        Initialize a new tile map with specified dimensions.
+        
+        Args:
+            width (int): Map width in tiles
+            height (int): Map height in tiles
+            game_state: Reference to the main game state object
+        """
         self.width = width
         self.height = height
         self.game_state = game_state
@@ -32,7 +44,18 @@ class TileMap:
         return tile and tile.walkable
         
     def set_electrical(self, x, y, component):
-        """Store an electrical component at the given position"""
+        """
+        Store an electrical component at the given position.
+        Uses dual storage for efficient access: a dictionary for quick lookups
+        and a 2D array for spatial relationships.
+        
+        Args:
+            x, y (int): Grid coordinates
+            component (ElectricalComponent): Component to place
+            
+        Returns:
+            bool: True if placement was successful
+        """
         
         # Bounds check
         if not (0 <= x < self.width and 0 <= y < self.height):
@@ -56,6 +79,14 @@ class TileMap:
         return None
 
     def render(self, surface, camera_x, camera_y):
+        """
+        Render the visible portion of the map using a camera-based viewport system.
+        Handles both terrain tiles and electrical components with proper zoom scaling.
+        
+        Args:
+            surface (pygame.Surface): Target surface to render on
+            camera_x, camera_y (float): Camera position in world coordinates
+        """
         zoom_level = self.game_state.zoom_level
         
         # Calculate visible area
@@ -126,7 +157,16 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        """Render an electrical component"""
+        """
+        Render a single electrical component with visual indicators for its state.
+        Components under construction are yellow, completed ones are cyan.
+        
+        Args:
+            surface (pygame.Surface): Target surface to render on
+            tile_x, tile_y (int): Grid coordinates of the component
+            camera_x, camera_y (float): Camera position
+            zoom_level (float): Current zoom level for scaling
+        """
         # Calculate screen position
         screen_x = int((tile_x * TILE_SIZE - camera_x) * zoom_level)
         screen_y = int((tile_y * TILE_SIZE - camera_y) * zoom_level)
