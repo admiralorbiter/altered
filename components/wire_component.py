@@ -30,27 +30,22 @@ class WireComponent(Component):
         if not self.wire_task:
             return
 
+        wire_pos = self.wire_task[0]
+        electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+        
+        # If task is complete, clear wire task
+        task_comp = self.entity.get_component('task')
+        if task_comp and not task_comp.current_task:
+            if electrical_comp and electrical_comp.is_built:
+                print(f"[WIRE DEBUG] Wire construction completed at {wire_pos}")
+                self.wire_task = None
+                return
+            
         # If pathfinding is complete and we're not moving
         if not self._pathfinding.path and not self.entity.get_component('movement').moving:
-            wire_pos, wire_type = self.wire_task
-            try:
-                task_comp = self.entity.get_component('task')
-                # Check if task is complete (progress >= required work time)
-                if task_comp and task_comp.current_task:
-                    if task_comp.progress >= task_comp.required_progress:
-                        print(f"[DEBUG] Wire construction complete at {wire_pos}")
-                        # Get the electrical component and update its state
-                        electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
-                        if electrical_comp:
-                            electrical_comp.under_construction = False
-                            electrical_comp.is_built = True
-                            print(f"[DEBUG] Wire at {wire_pos} visual state updated: under_construction={electrical_comp.under_construction}, is_built={electrical_comp.is_built}")
-                        self.wire_task = None
-                elif not task_comp or not task_comp.current_task:
-                    print(f"[DEBUG] Clearing wire task at {wire_pos} (no task)")
-                    self.wire_task = None
-            except AttributeError as e:
-                print(f"Error updating wire: {e}")
+            if not task_comp or not task_comp.current_task:
+                print(f"[WIRE DEBUG] No active task at {wire_pos}")
+                self.wire_task = None
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw wire and its construction state"""
@@ -60,25 +55,28 @@ class WireComponent(Component):
         zoom = self.entity.game_state.zoom_level
         wire_pos = self.wire_task[0]
         
-        # Calculate screen position
-        screen_x = (wire_pos[0] * TILE_SIZE - camera_x) * zoom
-        screen_y = (wire_pos[1] * TILE_SIZE - camera_y) * zoom
-        tile_size = TILE_SIZE * zoom
-        
         # Get wire component to check construction state
         electrical_comp = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
         if not electrical_comp:
             return
         
         # Choose color based on construction state
-        wire_color = (255, 255, 0) if electrical_comp.under_construction else (0, 255, 255)  # Yellow -> Cyan
-        wire_width = max(2 * zoom, 1) if electrical_comp.under_construction else max(3 * zoom, 2)
+        if electrical_comp.is_built:
+            wire_color = (0, 255, 255)  # Cyan for completed
+        elif electrical_comp.under_construction:
+            wire_color = (255, 255, 0)  # Yellow for under construction
+        else:
+            wire_color = (128, 128, 128)  # Gray for not started
         
-        # Draw main wire line
+        # Draw main wire line with updated color
+        screen_x = (wire_pos[0] * TILE_SIZE - camera_x) * zoom
+        screen_y = (wire_pos[1] * TILE_SIZE - camera_y) * zoom
+        tile_size = TILE_SIZE * zoom
+        
         pygame.draw.line(surface, wire_color,
                         (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
                         (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
-                        int(wire_width))
+                        int(max(2 * zoom, 1)))
         
         # Draw connection nodes
         node_radius = max(3 * zoom, 2)

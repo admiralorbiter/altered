@@ -14,6 +14,28 @@ class ElectricalComponent:
     connected_tiles: List[Tuple[int, int]] = field(default_factory=list)  # Adjacent connected components
     under_construction: bool = True  # Construction state for visual feedback
     
+    def __init__(self, type='wire', under_construction=True, is_built=False):
+        self.type = type
+        self._under_construction = under_construction
+        self._is_built = is_built
+        self.connected_tiles = []
+        
+    @property
+    def under_construction(self):
+        return self._under_construction
+        
+    @under_construction.setter
+    def under_construction(self, value):
+        self._under_construction = bool(value)
+        
+    @property
+    def is_built(self):
+        return self._is_built
+        
+    @is_built.setter
+    def is_built(self, value):
+        self._is_built = bool(value)
+    
 
 @dataclass
 class Tile:

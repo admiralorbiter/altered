@@ -58,7 +58,6 @@ class PathfindingComponent(Component):
         )
 
         if self.path:
-            print(f"[DEBUG] Found path with {len(self.path)} waypoints from {current_tile} to {target_tile}")
             self.current_waypoint = 0
             self._set_next_waypoint()
             return True
@@ -84,7 +83,6 @@ class PathfindingComponent(Component):
         # Convert tile coordinates to pixel coordinates (center of tile)
         pixel_x = next_tile[0] * self.tile_size + (self.tile_size // 2)
         pixel_y = next_tile[1] * self.tile_size + (self.tile_size // 2)
-        print(f"[DEBUG] Setting next waypoint: ({pixel_x}, {pixel_y})")
         self._movement.set_target_position(float(pixel_x), float(pixel_y))
 
     def update(self, dt: float) -> None:

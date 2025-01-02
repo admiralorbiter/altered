@@ -111,13 +111,6 @@ class TaskComponent(Component):
         working_radius = 2.0  # Increased from 1.5
         is_in_range = (dx + dy) <= working_radius  # Use Manhattan distance instead of separate checks
         
-        # Add more detailed debugging
-        print(f"[DEBUG] Cat position check:")
-        print(f"  - Cat tile pos: ({cat_x:.1f}, {cat_y:.1f})")
-        print(f"  - Task pos: ({task_x:.1f}, {task_y:.1f})")
-        print(f"  - Manhattan distance: {dx + dy:.1f}")
-        print(f"  - In range: {is_in_range}")
-        
         return is_in_range
 
     def _complete_task(self) -> None:

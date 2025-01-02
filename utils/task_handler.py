@@ -34,6 +34,12 @@ class TaskHandler:
         if not self.current_task:
             return
         
+        # Handle wire construction tasks
+        if self.current_task.type == TaskType.WIRE_CONSTRUCTION:
+            self._update_wire_construction(dt)
+            return
+        
+        # Default task progress handling
         if not self.is_building:
             self.is_building = True
             self.build_timer = 0
@@ -43,22 +49,10 @@ class TaskHandler:
         self.build_timer += dt
         
         if self.build_timer >= self.build_time_required:
-            
-            # Complete the wire construction
-            if self.game_state.wire_system.complete_wire_construction(self.current_task.position):
-                # Just complete the task, let the cat's update handle the state change
-                self.complete_current_task()
-                # Don't force an immediate update
+            self.complete_current_task()
 
     def _update_wire_construction(self, dt: float) -> None:
-        """Handle the progress of wire construction tasks.
-        
-        Updates building state based on proximity to construction site
-        and manages construction timer.
-        
-        Args:
-            dt: Delta time in seconds
-        """
+        """Handle the progress of wire construction tasks."""
         if not self.wire_task:
             return
 
@@ -68,27 +62,35 @@ class TaskHandler:
             int(self.entity.position.y // TILE_SIZE)
         )
         
-        # Simple distance check
+        # Simple distance check with tolerance
         dx = abs(wire_pos[0] - current_tile[0])
         dy = abs(wire_pos[1] - current_tile[1])
         
-        if dx <= 1 and dy <= 1:  # We're adjacent to wire
+        if dx <= 1.1 and dy <= 1.1:  # Slightly more forgiving distance check
             if not self.is_building:
+                print(f"[WIRE DEBUG] Starting construction at {wire_pos}")
                 self.is_building = True
-                self.build_timer = 0
+                self.entity.stop_movement()  # Force the entity to stop moving
+                self.entity.set_state(EntityState.WORKING)  # Explicitly set working state
+                # Disable pathfinding while building
+                self.entity.movement_handler.disable_pathfinding()
+                return
             
-            self.build_timer += dt
-            if self.build_timer >= self.build_time_required:
-                if self.entity.game_state.wire_system.complete_wire_construction(wire_pos):
-                    self.complete_current_task()
-                    self.is_building = False
-                    self.build_timer = 0
-                    return
-        else:
-            # Reset building state if we move away
-            if self.is_building:
+            # Update construction progress through wire system
+            if self.entity.game_state.wire_system.update_construction_progress(wire_pos, dt):
+                print(f"[WIRE DEBUG] Construction complete!")
+                self.complete_current_task()
                 self.is_building = False
-                self.build_timer = 0
+                self.entity.set_state(EntityState.WANDERING)  # Reset state after completion
+                # Re-enable pathfinding after completion
+                self.entity.movement_handler.enable_pathfinding()
+        else:
+            if self.is_building:
+                print(f"[WIRE DEBUG] Moved away from construction site")
+                self.is_building = False
+                self.entity.set_state(EntityState.MOVING)  # Reset to moving if we leave construction site
+                # Re-enable pathfinding if we move away
+                self.entity.movement_handler.enable_pathfinding()
 
     def start_task(self, task: Task) -> bool:
         """Attempt to start a new task for the entity."""
@@ -221,4 +223,5 @@ class TaskHandler:
         if not self.set_wire_task(task.position, 'wire'):
             return False
         
+        return True 
         return True 
