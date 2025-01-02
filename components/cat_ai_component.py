@@ -49,24 +49,33 @@ class CatAIComponent(Component):
                 return
             
             # If not at task position and not moving, try to move there
-            if not self._task._is_at_task_position() and not self._movement.moving:
-                target_x = task_pos[0] * TILE_SIZE + TILE_SIZE/2
-                target_y = task_pos[1] * TILE_SIZE + TILE_SIZE/2
-                
-                print(f"[DEBUG] Moving to task: Current pos: ({self.entity.position.x:.1f}, {self.entity.position.y:.1f})")
-                print(f"[DEBUG] Target pos: ({target_x}, {target_y})")
-                
-                if not self._pathfinding.set_target(target_x, target_y):
-                    print(f"[DEBUG] No path to task at {task_pos}, releasing task")
-                    self._task.stop()
-                    self._change_state(EntityState.WANDERING)
-                    return
+            if not self._task._is_at_task_position():
+                if not self._movement.moving:
+                    # Convert task position to pixel coordinates
+                    target_x = task_pos[0] * TILE_SIZE + (TILE_SIZE / 2)  # Center of tile
+                    target_y = task_pos[1] * TILE_SIZE + (TILE_SIZE / 2)
+                    
+                    # Convert current position to tile coordinates for debugging
+                    current_tile_x = int(self.entity.position.x / TILE_SIZE)
+                    current_tile_y = int(self.entity.position.y / TILE_SIZE)
+                    
+                    print(f"[DEBUG] Moving to task:")
+                    print(f"  Current tile: ({current_tile_x}, {current_tile_y})")
+                    print(f"  Target tile: ({task_pos[0]}, {task_pos[1]})")
+                    print(f"  Current pixels: ({self.entity.position.x:.1f}, {self.entity.position.y:.1f})")
+                    print(f"  Target pixels: ({target_x:.1f}, {target_y:.1f})")
+                    
+                    if not self._pathfinding.set_target(target_x, target_y):
+                        print(f"[DEBUG] No path to task at {task_pos}, releasing task")
+                        self._task.stop()  # Release task if we really can't reach it
+                        return
+                return  # Still moving or waiting to move
             
-            # If at task position and not moving, update task
-            if self._task._is_at_task_position() and not self._movement.moving:
-                if self._task.update(dt):
-                    print("[DEBUG] Task completed, changing to WANDERING")
-                    self._change_state(EntityState.WANDERING)
+            # If at task position, stop movement and work on task
+            self._movement.stop()  # Ensure cat stays still while working
+            if self._task.update(dt):  # Task completed
+                print("[DEBUG] Task completed, changing to WANDERING")
+                self._change_state(EntityState.WANDERING)
         
         elif self.state == EntityState.WANDERING:
             # Update wander timer

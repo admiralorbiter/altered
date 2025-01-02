@@ -68,6 +68,7 @@ class TaskComponent(Component):
         
         # Check if we're at the task position
         if not self._is_at_task_position():
+            # Don't immediately fail if not at position
             return False
         
         wire_pos = self.current_task.position
@@ -78,10 +79,17 @@ class TaskComponent(Component):
             self._complete_task()
             return True
         
-        if wire.is_built:
+        # Don't complete task just because wire is built - we might be the ones building it
+        if wire.is_built and not self._is_building:
             print(f"[DEBUG] Wire already built at {wire_pos}, completing task")
             self._complete_task()
             return True
+        
+        # Start construction if not already building
+        if not self._is_building:
+            self._is_building = True
+            wire.under_construction = True
+            print(f"[DEBUG] Starting construction at {wire_pos}")
         
         # Update construction progress
         self._work_progress += dt
@@ -93,13 +101,8 @@ class TaskComponent(Component):
             wire.under_construction = False
             wire.is_built = True
             
-            # Update both storage locations
-            tilemap = self.entity.game_state.current_level.tilemap
-            tilemap.electrical_components[wire_pos] = wire
-            tilemap.electrical_layer[wire_pos[1]][wire_pos[0]] = wire
-            
-            # Update connections
-            self.entity.game_state.wire_system._update_wire_connections(wire_pos)
+            # Notify wire system of completion
+            self.entity.game_state.wire_system.complete_wire_construction(wire_pos)
             
             # Complete the task
             self._complete_task()
@@ -120,14 +123,20 @@ class TaskComponent(Component):
         task_x = self._task_position[0]
         task_y = self._task_position[1]
         
-        # Calculate distance to task center
-        dx = abs(task_x - cat_x)
-        dy = abs(task_y - cat_y)
+        # Calculate Manhattan distance (grid-based distance)
+        manhattan_dist = abs(task_x - cat_x) + abs(task_y - cat_y)
         
-        # Use Euclidean distance instead of Manhattan
-        distance = (dx * dx + dy * dy) ** 0.5
-        working_radius = 2.0
-        is_in_range = distance <= working_radius
+        # Allow working from adjacent tiles (Manhattan distance <= 1)
+        # or from the task tile itself (Manhattan distance < 0.5)
+        is_in_range = manhattan_dist <= 1.2  # Slightly over 1 to allow for floating point
+        
+        # Only print debug when status changes to reduce spam
+        if is_in_range != getattr(self, '_last_in_range', None):
+            self._last_in_range = is_in_range
+            print(f"[DEBUG] Cat {'entered' if is_in_range else 'left'} task range.")
+            print(f"  Position: ({cat_x:.1f}, {cat_y:.1f})")
+            print(f"  Task: ({task_x}, {task_y})")
+            print(f"  Manhattan distance: {manhattan_dist:.2f}")
         
         return is_in_range
 

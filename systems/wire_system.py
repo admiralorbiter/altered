@@ -145,9 +145,13 @@ class WireSystem:
             # Create wire component with proper initialization
             component = ElectricalComponent(
                 type='wire',
-                _under_construction=True,  # Use the actual field name with underscore
-                _is_built=False           # Use the actual field name with underscore
+                _under_construction=True,
+                _is_built=False
             )
+            
+            # Explicitly set properties
+            component.under_construction = True
+            component.is_built = False
             
             # Place in tilemap
             tilemap = self.game_state.current_level.tilemap
