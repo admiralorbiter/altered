@@ -38,10 +38,8 @@ class CatAIComponent(Component):
         hunger = self.entity.get_component(HungerComponent)
         if hunger and hunger.is_critical:
             if self.state != EntityState.SEEKING_FOOD:
-                print(f"[DEBUG] Cat {self.entity.entity_id} is hungry! Hunger: {hunger.hunger}")
                 nearest_food = self._find_nearest_food()
                 if nearest_food:
-                    print(f"[DEBUG] Cat {self.entity.entity_id} found food at {nearest_food.position}")
                     if self._pathfinding.set_target(nearest_food.position.x, nearest_food.position.y):
                         self._change_state(EntityState.SEEKING_FOOD)
                         return
@@ -52,7 +50,6 @@ class CatAIComponent(Component):
                 # Check if we're near food
                 nearest_food = self._find_nearest_food()
                 if nearest_food and self._is_near_food(nearest_food):
-                    print(f"[DEBUG] Cat {self.entity.entity_id} eating food")
                     nearest_food.use(self.entity)
                     # Remove food from game
                     self.entity.game_state.current_level.entity_manager.remove_item(nearest_food)
