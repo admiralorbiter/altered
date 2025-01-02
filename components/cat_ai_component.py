@@ -33,50 +33,36 @@ class CatAIComponent(Component):
             self._pathfinding = self.entity.get_component(PathfindingComponent)
             return
         
-        # Handle current state
         if self.state == EntityState.WORKING:
-            # Check if we have a task
-            if not self._task.has_task():
-                print("[DEBUG] No task, changing to WANDERING")
-                self._change_state(EntityState.WANDERING)
+            # If we're at task position and stopped, work on task
+            if self._task._is_at_task_position():
+                if self._movement.moving:
+                    self._movement.stop()  # Force stop when in position
+                    print(f"[WIRE DEBUG] Cat stopped at task {self._task._task_position}")
+                    return
+                
+                # Update task progress
+                if self._task.update(dt):  # Task completed
+                    print(f"[WIRE DEBUG] Cat completed task at {self._task._task_position}")
+                    self._movement.allow_movement()  # Allow movement again
+                    self._change_state(EntityState.WANDERING)
                 return
-            
-            # Get task position
-            task_pos = self._task.get_task_position()
-            if not task_pos:
-                print("[DEBUG] No task position, changing to WANDERING")
-                self._change_state(EntityState.WANDERING)
-                return
-            
+
             # If not at task position and not moving, try to move there
-            if not self._task._is_at_task_position():
-                if not self._movement.moving:
-                    # Convert task position to pixel coordinates
-                    target_x = task_pos[0] * TILE_SIZE + (TILE_SIZE / 2)  # Center of tile
-                    target_y = task_pos[1] * TILE_SIZE + (TILE_SIZE / 2)
-                    
-                    # Convert current position to tile coordinates for debugging
-                    current_tile_x = int(self.entity.position.x / TILE_SIZE)
-                    current_tile_y = int(self.entity.position.y / TILE_SIZE)
-                    
-                    print(f"[DEBUG] Moving to task:")
-                    print(f"  Current tile: ({current_tile_x}, {current_tile_y})")
-                    print(f"  Target tile: ({task_pos[0]}, {task_pos[1]})")
-                    print(f"  Current pixels: ({self.entity.position.x:.1f}, {self.entity.position.y:.1f})")
-                    print(f"  Target pixels: ({target_x:.1f}, {target_y:.1f})")
-                    
-                    if not self._pathfinding.set_target(target_x, target_y):
-                        print(f"[DEBUG] No path to task at {task_pos}, releasing task")
-                        self._task.stop()  # Release task if we really can't reach it
-                        return
-                return  # Still moving or waiting to move
-            
-            # If at task position, stop movement and work on task
-            self._movement.stop()  # Ensure cat stays still while working
-            if self._task.update(dt):  # Task completed
-                print("[DEBUG] Task completed, changing to WANDERING")
-                self._change_state(EntityState.WANDERING)
-        
+            if not self._movement.moving:
+                task_pos = self._task.get_task_position()
+                if not task_pos:
+                    self._change_state(EntityState.WANDERING)
+                    return
+
+                target_x = task_pos[0] * TILE_SIZE + (TILE_SIZE / 2)
+                target_y = task_pos[1] * TILE_SIZE + (TILE_SIZE / 2)
+                
+                if not self._pathfinding.set_target(target_x, target_y):
+                    print(f"[DEBUG] Cannot reach task at {task_pos}, releasing task")
+                    self._task.stop()
+                    self._change_state(EntityState.WANDERING)
+
         elif self.state == EntityState.WANDERING:
             # Update wander timer
             self.wander_timer -= dt
@@ -148,22 +134,29 @@ class CatAIComponent(Component):
         
         # Get level dimensions
         level = self.entity.game_state.current_level
-        if hasattr(level, 'get_dimensions'):
-            width, height = level.get_dimensions()
-        elif hasattr(level.tilemap, 'width') and hasattr(level.tilemap, 'height'):
+        if hasattr(level.tilemap, 'width') and hasattr(level.tilemap, 'height'):
             width, height = level.tilemap.width, level.tilemap.height
         else:
-            width, height = 20, 20  # Default size if no dimensions available
+            width, height = 20, 20
         
-        # Try to find a valid position
-        for _ in range(10):  # Try up to 10 times
-            # Calculate random position in pixels
-            target_x = random.randint(0, width - 1) * TILE_SIZE + TILE_SIZE // 2
-            target_y = random.randint(0, height - 1) * TILE_SIZE + TILE_SIZE // 2
-            
-            # Try to find path to position
-            if self._pathfinding.set_target(target_x, target_y):
-                print(f"[DEBUG] Found valid wander target at ({target_x/TILE_SIZE:.1f}, {target_y/TILE_SIZE:.1f})")
-                return
-            
-        print("[DEBUG] Failed to find valid wander target after 10 attempts") 
+        # Get current position in tiles
+        current_x = int(self.entity.position.x / TILE_SIZE)
+        current_y = int(self.entity.position.y / TILE_SIZE)
+        
+        # Try to find a valid position near current position first
+        for radius in range(5, 21, 5):  # Try increasingly larger areas
+            for _ in range(4):  # Try a few times at each radius
+                # Pick random offset within radius
+                dx = random.randint(-radius, radius)
+                dy = random.randint(-radius, radius)
+                
+                target_x = (current_x + dx) * TILE_SIZE + (TILE_SIZE / 2)
+                target_y = (current_y + dy) * TILE_SIZE + (TILE_SIZE / 2)
+                
+                # Ensure within bounds
+                if 0 <= target_x < width * TILE_SIZE and 0 <= target_y < height * TILE_SIZE:
+                    if self._pathfinding.set_target(target_x, target_y):
+                        print(f"[DEBUG] Found valid wander target at ({target_x/TILE_SIZE:.1f}, {target_y/TILE_SIZE:.1f})")
+                        return
+        
+        print("[DEBUG] Failed to find valid wander target") 

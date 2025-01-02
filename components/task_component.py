@@ -60,51 +60,46 @@ class TaskComponent(Component):
     def update(self, dt: float) -> bool:
         """Update task progress"""
         if not self.current_task:
+            print("[TASK DEBUG] No current task")
             return False
+        
+        # Debug task type information
+        print(f"[TASK DEBUG] Task type details:")
+        print(f"  - Current type: {self.current_task.type} (type: {type(self.current_task.type)})")
+        print(f"  - Expected type: {TaskType.WIRE_CONSTRUCTION} (type: {type(TaskType.WIRE_CONSTRUCTION)})")
+        print(f"  - Comparison result: {self.current_task.type == TaskType.WIRE_CONSTRUCTION}")
         
         # Only handle wire construction tasks
         if self.current_task.type != TaskType.WIRE_CONSTRUCTION:
+            print(f"[TASK DEBUG] Wrong task type: {self.current_task.type}")
             return False
         
         # Check if we're at the task position
         if not self._is_at_task_position():
-            # Don't immediately fail if not at position
+            print(f"[TASK DEBUG] Not at position {self._task_position}")
             return False
-        
-        wire_pos = self.current_task.position
-        wire = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
-        
-        if not wire:
-            print(f"[DEBUG] No wire found at {wire_pos}, completing task")
-            self._complete_task()
-            return True
-        
-        # Don't complete task just because wire is built - we might be the ones building it
-        if wire.is_built and not self._is_building:
-            print(f"[DEBUG] Wire already built at {wire_pos}, completing task")
-            self._complete_task()
-            return True
         
         # Start construction if not already building
         if not self._is_building:
             self._is_building = True
-            wire.under_construction = True
-            print(f"[DEBUG] Starting construction at {wire_pos}")
+            print(f"[TASK DEBUG] Starting construction at {self._task_position}")
         
-        # Update construction progress
+        # Update work progress
+        old_progress = self._work_progress
         self._work_progress += dt
-        print(f"[DEBUG] Wire construction progress: {self._work_progress:.1f}/{self._work_time}")
+        print(f"[TASK DEBUG] Progress updated: {old_progress:.1f} -> {self._work_progress:.1f} / {self._work_time}")
+        
+        # Update wire construction progress in wire system
+        wire_system = self.entity.game_state.wire_system
+        if not wire_system.update_construction_progress(self._task_position, dt):
+            print(f"[TASK DEBUG] Wire system update failed at {self._task_position}")
+            return False
         
         if self._work_progress >= self._work_time:
-            print(f"[DEBUG] Wire construction complete at {wire_pos}")
-            # Update wire state
-            wire.under_construction = False
-            wire.is_built = True
-            
-            # Notify wire system of completion
-            self.entity.game_state.wire_system.complete_wire_construction(wire_pos)
-            
-            # Complete the task
+            print(f"[TASK DEBUG] Work complete ({self._work_progress:.1f} >= {self._work_time})")
+            if not wire_system.complete_wire_construction(self._task_position):
+                print(f"[TASK DEBUG] Wire completion failed at {self._task_position}")
+                return False
             self._complete_task()
             return True
         
@@ -113,6 +108,7 @@ class TaskComponent(Component):
     def _is_at_task_position(self) -> bool:
         """Check if entity is close enough to work on task"""
         if not self._task_position:
+            print("[TASK DEBUG] No task position set")
             return False
             
         # Convert pixel coordinates to tile coordinates
@@ -126,18 +122,17 @@ class TaskComponent(Component):
         # Calculate Manhattan distance (grid-based distance)
         manhattan_dist = abs(task_x - cat_x) + abs(task_y - cat_y)
         
-        # Allow working from adjacent tiles (Manhattan distance <= 1)
-        # or from the task tile itself (Manhattan distance < 0.5)
-        is_in_range = manhattan_dist <= 1.2  # Slightly over 1 to allow for floating point
+        # More lenient range check and "sticky" behavior
+        is_in_range = manhattan_dist <= 2.0
+        if hasattr(self, '_last_in_range') and self._last_in_range:
+            # If we were in range before, be more lenient about leaving
+            is_in_range = manhattan_dist <= 2.2
         
-        # Only print debug when status changes to reduce spam
-        if is_in_range != getattr(self, '_last_in_range', None):
-            self._last_in_range = is_in_range
-            print(f"[DEBUG] Cat {'entered' if is_in_range else 'left'} task range.")
-            print(f"  Position: ({cat_x:.1f}, {cat_y:.1f})")
-            print(f"  Task: ({task_x}, {task_y})")
-            print(f"  Manhattan distance: {manhattan_dist:.2f}")
+        # Print position info every frame while in range
+        if is_in_range:
+            print(f"[TASK DEBUG] At position: ({cat_x:.1f}, {cat_y:.1f}), Task: ({task_x}, {task_y}), Dist: {manhattan_dist:.2f}")
         
+        self._last_in_range = is_in_range
         return is_in_range
 
     def _complete_task(self) -> None:

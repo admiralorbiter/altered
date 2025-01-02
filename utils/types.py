@@ -1,11 +1,16 @@
-from enum import Enum
+from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
 class TaskType(Enum):
     """Defines the different types of tasks that entities can perform in the game."""
-    WIRE_CONSTRUCTION = 1
+    WIRE_CONSTRUCTION = auto()
     # Future task types can be added here
+
+    def __eq__(self, other):
+        if isinstance(other, TaskType):
+            return self.value == other.value
+        return False
 
 class EntityState(Enum):
     """Represents the possible states an entity can be in during gameplay."""

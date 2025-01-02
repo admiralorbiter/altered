@@ -22,7 +22,7 @@ class PathfindingComponent(Component):
 
     def set_target(self, target_x: float, target_y: float) -> bool:
         """Set path to target position using A* pathfinding"""
-        if not self._movement:
+        if not self._movement or self._movement._force_stop:
             return False
 
         # Convert pixel coordinates to tile coordinates
@@ -35,18 +35,25 @@ class PathfindingComponent(Component):
             int(target_y // self.tile_size)
         )
 
-        # Get tilemap from game state
-        try:
-            tilemap = self.entity.game_state.current_level.tilemap
-            if not tilemap.is_walkable(target_tile[0], target_tile[1]):
-                # Try to find nearest walkable tile
-                for dx, dy in [(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,1), (1,-1), (-1,-1)]:
-                    new_x, new_y = target_tile[0] + dx, target_tile[1] + dy
-                    if tilemap.is_walkable(new_x, new_y):
-                        target_tile = (new_x, new_y)
-                        break
-        except AttributeError:
-            return False
+        # Check if current position is walkable
+        tilemap = self.entity.game_state.current_level.tilemap
+        if not tilemap.is_walkable(current_tile[0], current_tile[1]):
+            # Try to find nearest walkable tile
+            for dx, dy in [(0,0), (0,1), (1,0), (0,-1), (-1,0)]:
+                test_x = current_tile[0] + dx
+                test_y = current_tile[1] + dy
+                if tilemap.is_walkable(test_x, test_y):
+                    print(f"[DEBUG] Moving from unwalkable tile {current_tile} to walkable tile ({test_x}, {test_y})")
+                    self.entity.position.x = (test_x + 0.5) * self.tile_size
+                    self.entity.position.y = (test_y + 0.5) * self.tile_size
+                    current_tile = (test_x, test_y)
+                    break
+            else:
+                print(f"[DEBUG] Entity stuck in unwalkable position {current_tile}")
+                return False
+
+        # Clear existing path
+        self.clear_path()
 
         # Find path using A*
         self.path = find_path(
@@ -57,13 +64,29 @@ class PathfindingComponent(Component):
             self.entity
         )
 
+        if not self.path:
+            # Try to find path to adjacent tiles
+            for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
+                alt_target = (target_tile[0] + dx, target_tile[1] + dy)
+                if tilemap.is_walkable(alt_target[0], alt_target[1]):
+                    self.path = find_path(
+                        current_tile,
+                        alt_target,
+                        tilemap,
+                        self.entity.game_state,
+                        self.entity
+                    )
+                    if self.path:
+                        print(f"[DEBUG] Found alternate path to ({alt_target[0]}, {alt_target[1]})")
+                        break
+
         if self.path:
             self.current_waypoint = 0
             self._set_next_waypoint()
             return True
-        else:
-            print(f"[DEBUG] No path found from {current_tile} to {target_tile}")
-            return False
+        
+        print(f"[DEBUG] No path found from {current_tile} to {target_tile} or adjacent tiles")
+        return False
 
     def waypoint_reached(self) -> None:
         """Called by movement component when waypoint is reached"""
@@ -121,8 +144,9 @@ class PathfindingComponent(Component):
 
     def clear_path(self) -> None:
         """Clear current path and reset state"""
-        self.path = []
-        self.current_waypoint = 0
-        if self._movement:
-            self._movement.moving = False
-            self._movement.target_position = None
+        if self.path:  # Only clear if there's actually a path
+            self.path = []
+            self.current_waypoint = 0
+            if self._movement:
+                self._movement.moving = False
+                self._movement.target_position = None

@@ -9,8 +9,9 @@ class MovementComponent(Component):
         self.speed = speed
         self.target_position = None
         self.moving = False
-        self.position = pygame.math.Vector2(entity.position)  # Track position separately
+        self.position = pygame.math.Vector2(entity.position)
         self._pathfinding = None
+        self._force_stop = False  # New flag to prevent movement
 
     def start(self) -> None:
         """Get reference to pathfinding component"""
@@ -29,9 +30,8 @@ class MovementComponent(Component):
         return not self.moving
 
     def allow_movement(self) -> None:
-        """Allow movement to start"""
-        self.moving = False
-        self.target_position = None
+        """Allow movement again"""
+        self._force_stop = False
 
     def start_random_movement(self) -> None:
         """Start movement to a random position"""
@@ -70,36 +70,31 @@ class MovementComponent(Component):
 
     def update(self, dt: float) -> None:
         """Update entity position"""
-        if not self.moving or not self.target_position:
+        if self._force_stop or not self.moving or not self.target_position:
             return
 
-        try:
-            # Calculate movement direction and distance
-            direction = self.target_position - self.position
-            distance = direction.length()
-            
-            if distance < 2:  # Slightly larger threshold
-                # Snap to target position
-                self.position = pygame.math.Vector2(self.target_position)
-                self.entity.position = pygame.math.Vector2(self.position)
-                self.moving = False
-                self.target_position = None
-                # Signal pathfinding that we've reached the waypoint
-                if self._pathfinding:
-                    self._pathfinding.waypoint_reached()
-            else:
-                # Normalize direction and apply movement
-                normalized_dir = direction.normalize()
-                movement = normalized_dir * self.speed * dt
-                
-                # Update position
-                self.position += movement
-                self.entity.position = pygame.math.Vector2(self.position)
-                
-        except (TypeError, AttributeError) as e:
-            print(f"[DEBUG] Movement error: {e}")
+        # Calculate movement direction and distance
+        direction = self.target_position - self.position
+        distance = direction.length()
+        
+        if distance < 1.0:  # Smaller threshold for more precise stopping
+            # Snap to target position
+            self.position = pygame.math.Vector2(self.target_position)
+            self.entity.position = pygame.math.Vector2(self.position)
             self.moving = False
             self.target_position = None
+            # Signal pathfinding that we've reached the waypoint
+            if self._pathfinding:
+                self._pathfinding.waypoint_reached()
+        else:
+            # Normalize direction and apply movement
+            normalized_dir = direction.normalize()
+            move_distance = min(self.speed * dt, distance)  # Don't overshoot
+            movement = normalized_dir * move_distance
+            
+            # Update position
+            self.position += movement
+            self.entity.position = pygame.math.Vector2(self.position)
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw movement debug info"""
@@ -121,9 +116,10 @@ class MovementComponent(Component):
             pygame.draw.circle(surface, (0, 255, 0), end_pos, 3) 
 
     def stop(self) -> None:
-        """Stop current movement and clean up"""
+        """Stop current movement and prevent new movement"""
         self.moving = False
         self.target_position = None
+        self._force_stop = True
         # Clear pathfinding state
         if self._pathfinding:
             self._pathfinding.clear_path() 

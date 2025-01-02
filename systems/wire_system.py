@@ -7,19 +7,16 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, List
 from enum import Enum
 
-class TaskType(Enum):
-    """Enumeration of different task types in the game"""
-    WIRE_CONSTRUCTION = "wire_construction"
-    # Future task types can be added here
-
 @dataclass
 class Task:
     """Represents a game task that can be assigned to entities"""
     type: TaskType
     position: Tuple[int, int]
     assigned_to: Optional[Entity] = None
-    priority: int = 1  # 0 = low, 1 = normal, 2 = high, 3 = critical
+    priority: int = 1
     completed: bool = False
+    work_time: float = 2.0  # Add default work time
+    _work_progress: float = 0.0  # Add progress tracking
     
     def should_interrupt(self) -> bool:
         """
@@ -171,34 +168,28 @@ class WireSystem:
         
         return created_tasks
 
-    def complete_wire_construction(self, position):
+    def complete_wire_construction(self, position: tuple[int, int]) -> bool:
         """Complete wire construction at the given position"""
-        print(f"[DEBUG] === Starting wire completion at {position} ===")
-        
-        # Get the wire component
-        tilemap = self.game_state.current_level.tilemap
-        wire = tilemap.get_electrical(position[0], position[1])
-        
+        wire = self.game_state.current_level.tilemap.get_electrical(position[0], position[1])
         if not wire:
-            print(f"[DEBUG] No wire found at {position}")
+            print(f"[WIRE DEBUG] No wire found at {position} for completion")
             return False
         
-        # Update wire state using properties
-        wire.under_construction = False
-        wire.is_built = True
+        # Update wire state
+        try:
+            wire.under_construction = False
+            wire.is_built = True
+            print(f"[WIRE DEBUG] Wire at {position} marked as built")
+        except Exception as e:
+            print(f"[WIRE DEBUG] Error updating wire state: {e}")
+            return False
         
-        # Ensure both storage locations are updated
-        tilemap.electrical_components[position] = wire
-        tilemap.electrical_layer[position[1]][position[0]] = wire
+        # Clear construction progress
+        if position in self.construction_progress:
+            del self.construction_progress[position]
+            print(f"[WIRE DEBUG] Cleared construction progress for {position}")
         
-        # Update connections
         self._update_wire_connections(position)
-        
-        print(f"[DEBUG] === Wire state after completion ===")
-        print(f"  - Position: {position}")
-        print(f"  - under_construction: {wire.under_construction}")
-        print(f"  - is_built: {wire.is_built}")
-        
         return True
 
     def place_wire(self, position):
@@ -219,13 +210,31 @@ class WireSystem:
         return True
 
     def update_construction_progress(self, position: tuple[int, int], dt: float) -> bool:
-        """
-        Update construction progress for a wire - now just validates the wire exists
-        Returns True if wire exists and is under construction
-        """
+        """Update construction progress for a wire"""
         wire = self.game_state.current_level.tilemap.get_electrical(position[0], position[1])
-        if not wire or not wire.under_construction:
+        if not wire:
+            print(f"[WIRE DEBUG] No wire component found at {position}")
+            print(f"[WIRE DEBUG] Tilemap components: {self.game_state.current_level.tilemap.electrical_components.keys()}")
             return False
+        
+        # Debug wire object state
+        print(f"[WIRE DEBUG] Wire at {position} state:")
+        print(f"  - Type: {getattr(wire, 'type', 'unknown')}")
+        print(f"  - Attributes: {vars(wire)}")
+        
+        if not hasattr(wire, '_under_construction') or not wire._under_construction:
+            print(f"[WIRE DEBUG] Wire not under construction")
+            return False
+        
+        # Add progress tracking
+        if position not in self.construction_progress:
+            self.construction_progress[position] = 0.0
+            print(f"[WIRE DEBUG] Started progress tracking at {position}")
+        
+        old_progress = self.construction_progress[position]
+        self.construction_progress[position] += dt
+        print(f"[WIRE DEBUG] Progress at {position}: {old_progress:.1f} -> {self.construction_progress[position]:.1f}")
+        
         return True
 
     def complete_construction(self, position: tuple[int, int]) -> None:
