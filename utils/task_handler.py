@@ -66,23 +66,26 @@ class TaskHandler:
         dx = abs(wire_pos[0] - current_tile[0])
         dy = abs(wire_pos[1] - current_tile[1])
         
-        if dx <= 1.1 and dy <= 1.1:  # Slightly more forgiving distance check
+        if dx <= 1.1 and dy <= 1.1:  # Within range
             if not self.is_building:
                 print(f"[WIRE DEBUG] Starting construction at {wire_pos}")
                 self.is_building = True
-                self.entity.stop_movement()  # Force the entity to stop moving
-                self.entity.set_state(EntityState.WORKING)  # Explicitly set working state
-                # Disable pathfinding while building
+                self.entity.stop_movement()
+                self.entity.set_state(EntityState.WORKING)
                 self.entity.movement_handler.disable_pathfinding()
                 return
             
             # Update construction progress through wire system
             if self.entity.game_state.wire_system.update_construction_progress(wire_pos, dt):
-                print(f"[WIRE DEBUG] Construction complete!")
+                print(f"[WIRE DEBUG] Construction complete at {wire_pos}!")
+                # Ensure wire is properly marked as built
+                wire = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
+                if wire:
+                    wire.under_construction = False
+                    wire.is_built = True
                 self.complete_current_task()
                 self.is_building = False
-                self.entity.set_state(EntityState.WANDERING)  # Reset state after completion
-                # Re-enable pathfinding after completion
+                self.entity.set_state(EntityState.WANDERING)
                 self.entity.movement_handler.enable_pathfinding()
         else:
             if self.is_building:

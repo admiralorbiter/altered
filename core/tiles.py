@@ -9,24 +9,27 @@ class ElectricalComponent:
     power handling characteristics and connection states.
     """
     type: str  # 'wire', 'source', 'consumer'
-    capacity: float = 0.0  # Maximum power that can flow through this component
-    current_power: float = 0.0  # Current power level flowing through component
-    connected_tiles: List[Tuple[int, int]] = field(default_factory=list)  # Adjacent connected components
-    under_construction: bool = True  # Construction state for visual feedback
+    _under_construction: bool = True  # Use private field for property
+    _is_built: bool = False  # Use private field for property
+    capacity: float = 0.0
+    current_power: float = 0.0
+    connected_tiles: List[Tuple[int, int]] = field(default_factory=list)
     
-    def __init__(self, type='wire', under_construction=True, is_built=False):
-        self.type = type
-        self._under_construction = under_construction
-        self._is_built = is_built
-        self.connected_tiles = []
-        
+    def __post_init__(self):
+        """Initialize after dataclass fields are set"""
+        print(f"[DEBUG] Creating new ElectricalComponent:")
+        print(f"  - type: {self.type}")
+        print(f"  - under_construction: {self._under_construction}")
+        print(f"  - is_built: {self._is_built}")
+    
     @property
     def under_construction(self):
         return self._under_construction
         
     @under_construction.setter
     def under_construction(self, value):
-        self._under_construction = bool(value)
+        self._under_construction = value
+        print(f"[DEBUG] ElectricalComponent under_construction set to {value}")
         
     @property
     def is_built(self):
@@ -34,7 +37,8 @@ class ElectricalComponent:
         
     @is_built.setter
     def is_built(self, value):
-        self._is_built = bool(value)
+        self._is_built = value
+        print(f"[DEBUG] ElectricalComponent is_built set to {value}")
     
 
 @dataclass

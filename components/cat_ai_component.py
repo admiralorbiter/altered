@@ -37,25 +37,35 @@ class CatAIComponent(Component):
         if self.state == EntityState.WORKING:
             # Check if we have a task
             if not self._task.has_task():
+                print("[DEBUG] No task, changing to WANDERING")
                 self._change_state(EntityState.WANDERING)
                 return
             
             # Get task position
             task_pos = self._task.get_task_position()
             if not task_pos:
+                print("[DEBUG] No task position, changing to WANDERING")
                 self._change_state(EntityState.WANDERING)
                 return
             
-            # If not moving, try to move to task
-            if not self._movement.moving:
-                # Convert task position to pixel coordinates
+            # If not at task position and not moving, try to move there
+            if not self._task._is_at_task_position() and not self._movement.moving:
                 target_x = task_pos[0] * TILE_SIZE + TILE_SIZE/2
                 target_y = task_pos[1] * TILE_SIZE + TILE_SIZE/2
                 
-                # Try to find path to task
+                print(f"[DEBUG] Moving to task: Current pos: ({self.entity.position.x:.1f}, {self.entity.position.y:.1f})")
+                print(f"[DEBUG] Target pos: ({target_x}, {target_y})")
+                
                 if not self._pathfinding.set_target(target_x, target_y):
                     print(f"[DEBUG] No path to task at {task_pos}, releasing task")
-                    self._task.stop()  # Release the task so another cat can try
+                    self._task.stop()
+                    self._change_state(EntityState.WANDERING)
+                    return
+            
+            # If at task position and not moving, update task
+            if self._task._is_at_task_position() and not self._movement.moving:
+                if self._task.update(dt):
+                    print("[DEBUG] Task completed, changing to WANDERING")
                     self._change_state(EntityState.WANDERING)
         
         elif self.state == EntityState.WANDERING:
