@@ -44,7 +44,7 @@ class TaskSystem:
 
         # Get available unassigned tasks
         available_tasks = [t for t in self.available_tasks 
-                          if t.assigned_to is None]
+                          if not t.is_assigned()]
         if not available_tasks:
             return None
 
@@ -58,10 +58,8 @@ class TaskSystem:
             )
         )
 
-        # Assign the task
+        # Return the best task but don't remove it yet
         task = sorted_tasks[0]
-        self.available_tasks.remove(task)
-        task.assigned_to = id(entity)
         self.assigned_tasks[entity] = task
         return task
 

@@ -29,13 +29,18 @@ class TaskComponent(Component):
             return False
             
         # Need to check if task is already assigned to another entity
-        if task.assigned_to and task.assigned_to != id(self.entity):
+        if task.is_assigned() and not task.is_assigned_to(self.entity):
             return False
             
         self.current_task = task
         self._task_position = task.position
         self._work_progress = 0
         self._work_time = getattr(task, 'work_time', 2.0)
+        
+        # Now actually assign and remove from available pool
+        task.assign_to(self.entity)
+        if task in self.entity.game_state.task_system.available_tasks:
+            self.entity.game_state.task_system.available_tasks.remove(task)
         
         return True
 
@@ -118,10 +123,16 @@ class TaskComponent(Component):
         if not self.current_task:
             return
         
+        print(f"[TASK DEBUG] Completing task at {self._task_position}")  # Debug line
         self.entity.game_state.task_system.complete_task(self.current_task)
         self.current_task = None
         self._task_position = None
         self._work_progress = 0
+        self._is_building = False  # Make sure to reset building state
+        
+        # Reset any movement restrictions that might have been set
+        if self._movement:
+            self._movement.allow_movement()
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Render task progress if working"""

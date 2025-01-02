@@ -32,7 +32,19 @@ class CatAIComponent(Component):
             self._pathfinding = self.entity.get_component(PathfindingComponent)
             return
         
+        # Always check for tasks if we're wandering and not moving
+        if self.state == EntityState.WANDERING and not self._movement.moving:
+            if self._try_find_task():
+                self._change_state(EntityState.WORKING)
+                return
+        
         if self.state == EntityState.WORKING:
+            # If we don't have a task anymore, go back to wandering
+            if not self._task.has_task():
+                print(f"[AI DEBUG] No task, returning to wandering")  # Debug line
+                self._change_state(EntityState.WANDERING)
+                return
+            
             # If we're at task position and stopped, work on task
             if self._task._is_at_task_position():
                 if self._movement.moving:
@@ -41,6 +53,7 @@ class CatAIComponent(Component):
                 
                 # Update task progress
                 if self._task.update(dt):  # Task completed
+                    print(f"[AI DEBUG] Task completed, returning to wandering")  # Debug line
                     self._movement.allow_movement()  # Allow movement again
                     self._change_state(EntityState.WANDERING)
                 return
@@ -63,13 +76,9 @@ class CatAIComponent(Component):
             # Update wander timer
             self.wander_timer -= dt
             if self.wander_timer <= 0:
-                # Look for a task when done wandering
-                if self._try_find_task():
-                    self._change_state(EntityState.WORKING)
-                else:
-                    # Pick new random position and reset timer
-                    self._pick_random_wander_target()
-                    self.wander_timer = random.uniform(3.0, 8.0)
+                # Pick new random position and reset timer
+                self._pick_random_wander_target()
+                self.wander_timer = random.uniform(3.0, 8.0)
 
     def _try_find_task(self) -> bool:
         """Attempt to find and claim a task"""
@@ -92,14 +101,17 @@ class CatAIComponent(Component):
         return False
 
     def _change_state(self, new_state: EntityState) -> None:
-        """Switch AI state """
+        """Switch AI state with proper cleanup"""
+        print(f"[AI DEBUG] Changing state from {self.state} to {new_state}")  # Debug line
         self.state = new_state
         
         # Reset relevant timers and states
         if new_state == EntityState.WANDERING:
             self.wander_timer = random.uniform(3.0, 8.0)
+            if self._movement:
+                self._movement.allow_movement()  # Ensure movement is allowed
         elif new_state == EntityState.IDLE:
-            self.idle_timer = random.uniform(2.0, 5.0) 
+            self.idle_timer = random.uniform(2.0, 5.0)
 
     def _find_nearest_food(self) -> Optional[Food]:
         """Find the nearest food item"""
