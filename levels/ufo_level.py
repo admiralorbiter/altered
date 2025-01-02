@@ -68,7 +68,7 @@ class UfoLevel(BaseLevel):
             # Restore cat's hunger to full
             hunger_component = cat.get_component(HungerComponent)
             if hunger_component:
-                hunger_component.hunger = 100
+                hunger_component.hunger = 25
             self.cats.append(cat)
             self.entity_manager.add_entity(cat)
         

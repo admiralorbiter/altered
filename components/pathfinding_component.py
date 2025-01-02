@@ -130,3 +130,35 @@ class PathfindingComponent(Component):
             if self._movement:
                 self._movement.moving = False
                 self._movement.target_position = None
+
+    def can_reach(self, target_x: float, target_y: float) -> bool:
+        """Check if a path exists to target position"""
+        # Convert pixel coordinates to tile coordinates
+        current_tile = (
+            int(self.entity.position.x // self.tile_size),
+            int(self.entity.position.y // self.tile_size)
+        )
+        target_tile = (
+            int(target_x // self.tile_size),
+            int(target_y // self.tile_size)
+        )
+
+        # Get tilemap and validate tiles
+        tilemap = self.entity.game_state.current_level.tilemap
+        if not (0 <= target_tile[0] < tilemap.width and 
+                0 <= target_tile[1] < tilemap.height):
+            return False
+
+        if not tilemap.is_walkable(*target_tile):
+            return False
+
+        # Check if path exists
+        path = find_path(
+            current_tile,
+            target_tile,
+            tilemap,
+            self.entity.game_state,
+            self.entity
+        )
+        
+        return path is not None

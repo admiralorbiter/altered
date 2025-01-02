@@ -14,9 +14,9 @@ class TaskType(Enum):
 
 class EntityState(Enum):
     """Represents the possible states an entity can be in during gameplay."""
-    IDLE = "idle"
     WANDERING = "wandering"
     WORKING = "working"
+    IDLE = "idle"
     SEEKING_FOOD = "seeking_food"
 
 @dataclass

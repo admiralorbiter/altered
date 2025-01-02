@@ -1,5 +1,6 @@
 import random
 from components.base_component import Component
+from components.hunger_component import HungerComponent
 from components.movement_component import MovementComponent
 from components.pathfinding_component import PathfindingComponent
 from components.task_component import TaskComponent
@@ -33,20 +34,41 @@ class CatAIComponent(Component):
             self._pathfinding = self.entity.get_component(PathfindingComponent)
             return
 
-        # Debug current state
-        
+        # First priority: Check hunger and look for food if critical
+        hunger = self.entity.get_component(HungerComponent)
+        if hunger and hunger.is_critical:
+            if self.state != EntityState.SEEKING_FOOD:
+                print(f"[DEBUG] Cat {self.entity.entity_id} is hungry! Hunger: {hunger.hunger}")
+                nearest_food = self._find_nearest_food()
+                if nearest_food:
+                    print(f"[DEBUG] Cat {self.entity.entity_id} found food at {nearest_food.position}")
+                    if self._pathfinding.set_target(nearest_food.position.x, nearest_food.position.y):
+                        self._change_state(EntityState.SEEKING_FOOD)
+                        return
+
+        # Handle food seeking state
+        if self.state == EntityState.SEEKING_FOOD:
+            if not self._movement.moving:
+                # Check if we're near food
+                nearest_food = self._find_nearest_food()
+                if nearest_food and self._is_near_food(nearest_food):
+                    print(f"[DEBUG] Cat {self.entity.entity_id} eating food")
+                    nearest_food.use(self.entity)
+                    # Remove food from game
+                    self.entity.game_state.current_level.entity_manager.remove_item(nearest_food)
+                    self._change_state(EntityState.WANDERING)
+                else:
+                    # No food nearby, go back to wandering
+                    self._change_state(EntityState.WANDERING)
+            return
+
+        # Normal wandering behavior
         if self.state == EntityState.WANDERING:
-            # Update wander timer
             self.wander_timer -= dt
-            
-            # Check if we should pick a new target
             if not self._movement.moving or self.wander_timer <= 0:
-                
                 if self._try_find_task():
                     self._change_state(EntityState.WORKING)
                     return
-                
-                # Force new target selection if not moving or timer expired
                 self._pick_random_wander_target()
                 self.wander_timer = random.uniform(3.0, 8.0)
 
@@ -114,8 +136,13 @@ class CatAIComponent(Component):
         elif new_state == EntityState.IDLE:
             self.idle_timer = random.uniform(2.0, 5.0)
 
+    def _is_near_food(self, food_item: Food) -> bool:
+        """Check if we're close enough to eat the food"""
+        distance = (food_item.position - self.entity.position).length()
+        return distance < TILE_SIZE * 1.5  # Within 1.5 tiles
+
     def _find_nearest_food(self) -> Optional[Food]:
-        """Find the nearest food item"""
+        """Find the nearest accessible food item"""
         nearest_food = None
         min_distance = float('inf')
         
@@ -123,8 +150,10 @@ class CatAIComponent(Component):
             if isinstance(item, Food):
                 distance = (item.position - self.entity.position).length()
                 if distance < min_distance:
-                    min_distance = distance
-                    nearest_food = item
+                    # Check if we can path to this food
+                    if self._pathfinding.can_reach(item.position.x, item.position.y):
+                        min_distance = distance
+                        nearest_food = item
         
         return nearest_food 
 
