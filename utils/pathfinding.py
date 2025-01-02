@@ -1,5 +1,7 @@
-from typing import List, Tuple, Set, Dict
+from typing import List, Tuple, Set, Dict, Optional
 from queue import PriorityQueue
+
+from utils.config import TILE_SIZE
 
 class PathReservationSystem:
     """Manages path reservations to prevent entity collisions"""
@@ -67,8 +69,53 @@ def get_neighbors(pos: Tuple[int, int], tilemap) -> List[Tuple[int, int]]:
             
     return neighbors
 
-def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=None, entity=None) -> List[Tuple[int, int]]:
-    """A* pathfinding algorithm with optional path reservation"""
+def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=None, entity=None) -> Optional[List[Tuple[int, int]]]:
+    """A* pathfinding with entity collision avoidance"""
+    
+    def is_tile_occupied(tile: Tuple[int, int]) -> bool:
+        """Check if a tile is occupied by any entity except the moving one"""
+        if not game_state:
+            return False
+            
+        for other in game_state.entity_manager.entities:
+            if other == entity:
+                continue
+            other_tile = (
+                int(other.position.x // TILE_SIZE),
+                int(other.position.y // TILE_SIZE)
+            )
+            if (other_tile == tile and 
+                (tile == end or tile != (int(entity.position.x // TILE_SIZE),
+                                       int(entity.position.y // TILE_SIZE)))):
+                return True
+        return False
+
+    def get_neighbors(pos: Tuple[int, int]) -> List[Tuple[int, int]]:
+        """Get valid neighboring tiles"""
+        x, y = pos
+        neighbors = []
+        
+        # Check cardinal directions first
+        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+            next_x, next_y = x + dx, y + dy
+            if (0 <= next_x < tilemap.width and 
+                0 <= next_y < tilemap.height and 
+                tilemap.is_walkable(next_x, next_y) and
+                not is_tile_occupied((next_x, next_y))):
+                neighbors.append((next_x, next_y))
+                
+        # If no valid cardinal moves, try diagonals
+        if not neighbors:
+            for dx, dy in [(1, 1), (-1, 1), (1, -1), (-1, -1)]:
+                next_x, next_y = x + dx, y + dy
+                if (0 <= next_x < tilemap.width and 
+                    0 <= next_y < tilemap.height and 
+                    tilemap.is_walkable(next_x, next_y) and
+                    not is_tile_occupied((next_x, next_y))):
+                    neighbors.append((next_x, next_y))
+        
+        return neighbors
+
     # Early exit for invalid inputs
     if not tilemap or not start or not end:
         return None
@@ -110,7 +157,7 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         if current == end:
             break
             
-        for next_pos in get_neighbors(current, tilemap):
+        for next_pos in get_neighbors(current):
             # Skip if tile is reserved by another entity
             if path_system and path_system.is_tile_reserved(next_pos, entity):
                 continue

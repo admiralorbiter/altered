@@ -15,9 +15,10 @@ class MovementComponent(Component):
 
     def start(self) -> None:
         """Get reference to pathfinding component"""
-        # Import here to avoid circular import
         from components.pathfinding_component import PathfindingComponent
         self._pathfinding = self.entity.get_component(PathfindingComponent)
+        self._force_stop = False
+        self.moving = False
 
     @property
     def path(self) -> list:
@@ -67,10 +68,14 @@ class MovementComponent(Component):
         """Set movement target in pixel coordinates"""
         self.target_position = pygame.math.Vector2(pixel_x, pixel_y)
         self.moving = True
+        self._force_stop = False
 
     def update(self, dt: float) -> None:
         """Update entity position"""
-        if self._force_stop or not self.moving or not self.target_position:
+        if self._force_stop:
+            return
+
+        if not self.moving or not self.target_position:
             return
 
         # Calculate movement direction and distance
@@ -78,18 +83,16 @@ class MovementComponent(Component):
         distance = direction.length()
         
         if distance < 1.0:  # Smaller threshold for more precise stopping
-            # Snap to target position
             self.position = pygame.math.Vector2(self.target_position)
             self.entity.position = pygame.math.Vector2(self.position)
             self.moving = False
             self.target_position = None
-            # Signal pathfinding that we've reached the waypoint
             if self._pathfinding:
                 self._pathfinding.waypoint_reached()
         else:
             # Normalize direction and apply movement
             normalized_dir = direction.normalize()
-            move_distance = min(self.speed * dt, distance)  # Don't overshoot
+            move_distance = min(self.speed * dt, distance)
             movement = normalized_dir * move_distance
             
             # Update position

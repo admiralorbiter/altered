@@ -4,11 +4,13 @@ from systems.capture_system import CaptureState
 from .base_enemy import BaseEnemy
 from utils.config import *
 from utils.pathfinding import find_path
-import random
-import math
 from .renderers.human_renderer import HumanRenderer
 from .renderers.capture_effect_renderer import CaptureEffectRenderer
 from .renderers.detection_range_renderer import DetectionRangeRenderer
+from components.movement_component import MovementComponent
+from components.health_component import HealthComponent
+from components.pathfinding_component import PathfindingComponent
+from components.human_ai_component import HumanAIComponent
 
 class Human(BaseEnemy):
     """
@@ -17,59 +19,67 @@ class Human(BaseEnemy):
     """
     def __init__(self, x, y):
         # Convert tile coordinates to pixel coordinates
-        pixel_x = (x + 0.5) * TILE_SIZE  # Center in tile
+        pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
+        
+        # Call super() first to initialize base class and components dict
         super().__init__(pixel_x, pixel_y)
         
         # Set size for collision detection
         self.size = pygame.math.Vector2(32, 32)
         
-        # Combat statistics
-        self.max_health = 80  # Maximum health points
-        self.health = self.max_health
-        self.attack_power = 15  # Damage dealt per attack
-        self.speed = 250  # Movement speed in pixels/second
-        self.attack_cooldown = 1.0  # Time between attacks
-        self.attack_timer = 0  # Current attack cooldown
+        # Add components
+        self.movement = MovementComponent(self)
+        self.add_component(self.movement)
         
-        # Visual properties
-        self.color = (200, 150, 150, 200)  # RGBA color for rendering
+        self.health = self.add_component(HealthComponent(self, max_health=80))
         
-        # Human-specific capture mechanics
-        self.struggle_chance = 0.15  # Higher chance to break free than base
-        self.unconscious_duration = 8.0  # Longer unconscious duration
+        self.pathfinding = PathfindingComponent(self)
+        self.add_component(self.pathfinding)
+        
+        self.ai = HumanAIComponent(self)
+        self.add_component(self.ai)
+        
+        # Start components in order
+        self.movement.start()
+        self.pathfinding.start()
+        self.ai.start()
+        
+        # Patrol state
+        self.patrol_points = []
+        self.current_patrol_index = 0
         
         # Initialize renderers
         self.detection_renderer = DetectionRangeRenderer()
         self.character_renderer = HumanRenderer(color=(200, 150, 150, 200))
         self.capture_renderer = CaptureEffectRenderer()
         
-    def attack(self, target):
-        if self.attack_timer <= 0:
-            target.take_damage(self.attack_power)
-            self.attack_timer = self.attack_cooldown
-            
+        # Combat attributes
+        self.attack_power = 15
+        self.attack_range = TILE_SIZE * 1.2
+        self.attack_cooldown = 1.0
+        self.attack_timer = 0
+
     def update(self, dt):
-        # Check capture state first
         if self.capture_state != CaptureState.NONE:
-            # When captured, only update position if being carried
-            if self.capture_state == CaptureState.BEING_CARRIED and self.carrier:
-                self.position = self.carrier.position.copy()
-                self.target = None
-                self.path = None
-                self.moving = False
-            elif self.capture_state == CaptureState.UNCONSCIOUS:
-                self.target = None
-                self.path = None
-                self.moving = False
-                if hasattr(self, 'unconscious_timer'):
-                    self.unconscious_timer -= dt
-                    if self.unconscious_timer <= 0:
-                        self.capture_state = CaptureState.NONE
-            return  # Don't do any other updates when captured
-            
-        # Only proceed with normal updates if not captured
+            self._handle_captured_state(dt)
+            return
+        
         super().update(dt)
+        
+        # Update attack cooldown
+        if self.attack_timer > 0:
+            self.attack_timer -= dt
+
+    def _handle_captured_state(self, dt):
+        """Handle behavior when captured"""
+        if self.capture_state == CaptureState.BEING_CARRIED and self.carrier:
+            self.position = self.carrier.position.copy()
+        elif self.capture_state == CaptureState.UNCONSCIOUS:
+            if hasattr(self, 'unconscious_timer'):
+                self.unconscious_timer -= dt
+                if self.unconscious_timer <= 0:
+                    self.capture_state = CaptureState.NONE
 
     def render_with_offset(self, surface, camera_x, camera_y):
         """
@@ -88,30 +98,6 @@ class Human(BaseEnemy):
         self.capture_renderer.render(self, surface, camera_x, camera_y)
         self.character_renderer.render(self, surface, camera_x, camera_y)
 
-    def update_ai_state(self, dt, game_state):
-        """
-        Extends base AI state update with human-specific pathfinding behavior.
-        Updates movement paths more frequently during chase state.
-        
-        Args:
-            dt (float): Delta time
-            game_state: Current game state
-        """
-        super().update_ai_state(dt, game_state)
-        
-        if self.state == 'chase' and self.target:
-            current_tile = (int(self.position.x // TILE_SIZE),
-                           int(self.position.y // TILE_SIZE))
-            target_tile = (int(self.target.position.x // TILE_SIZE),
-                          int(self.target.position.y // TILE_SIZE))
-            
-            # Update path periodically
-            self.path_update_timer -= dt
-            if self.path_update_timer <= 0:
-                self.path = find_path(current_tile, target_tile,
-                                    game_state.current_level.tilemap)
-                self.path_update_timer = 0.5
-        
     def set_target(self, tile_x, tile_y):
         """
         Sets a new movement target for the human and calculates a path.
@@ -143,3 +129,45 @@ class Human(BaseEnemy):
             self.size.x,
             self.size.y
         ) 
+
+    def attack(self, target):
+        """Attack a target entity if within range"""
+        if not target or not hasattr(target, 'take_damage'):
+            return False
+            
+        distance = (target.position - self.position).length()
+        if distance > self.ai.attack_range:  # Use AI component's range
+            return False
+            
+        target.take_damage(self.attack_power)
+        return True 
+
+    def move_to_target(self, target_pos):
+        """Move towards a target position using pathfinding"""
+        if not hasattr(self, 'movement'):
+            return False
+            
+        # Convert target position to tile coordinates
+        target_tile = (
+            int(target_pos[0] // TILE_SIZE),
+            int(target_pos[1] // TILE_SIZE)
+        )
+        
+        # Get current tile position
+        current_tile = (
+            int(self.position.x // TILE_SIZE),
+            int(self.position.y // TILE_SIZE)
+        )
+        
+        # Find path to target
+        path = find_path(current_tile, target_tile, 
+                        self.game_state.current_level.tilemap)
+                        
+        if path:
+            # Convert first waypoint to pixel coordinates
+            next_x = (path[0][0] + 0.5) * TILE_SIZE
+            next_y = (path[0][1] + 0.5) * TILE_SIZE
+            self.movement.set_target_position(next_x, next_y)
+            return True
+            
+        return False 

@@ -35,6 +35,16 @@ class PathfindingComponent(Component):
             int(target_y // self.tile_size)
         )
 
+        # Check if target tile is occupied by another entity
+        for entity in self.entity.game_state.entity_manager.entities:
+            if entity != self.entity:  # Don't check against self
+                entity_tile = (
+                    int(entity.position.x // self.tile_size),
+                    int(entity.position.y // self.tile_size)
+                )
+                if entity_tile == target_tile:
+                    return False
+
         # Get tilemap and dimensions
         tilemap = self.entity.game_state.current_level.tilemap
         map_width = tilemap.width
@@ -56,7 +66,7 @@ class PathfindingComponent(Component):
         self.path = find_path(
             current_tile,
             target_tile,
-            tilemap,
+            self.entity.game_state.current_level.tilemap,
             self.entity.game_state,
             self.entity
         )
@@ -78,18 +88,21 @@ class PathfindingComponent(Component):
             self.current_waypoint = 0
 
     def _set_next_waypoint(self) -> None:
-        """Update movement component with next waypoint"""
+        """Set movement component's target to next waypoint"""
         if not self.path or not self._movement:
             return
 
         next_tile = self.path[self.current_waypoint]
-        # Convert tile coordinates to pixel coordinates (center of tile)
         pixel_x = next_tile[0] * self.tile_size + (self.tile_size // 2)
         pixel_y = next_tile[1] * self.tile_size + (self.tile_size // 2)
         self._movement.set_target_position(float(pixel_x), float(pixel_y))
 
     def update(self, dt: float) -> None:
-        """Check if current waypoint reached and set next one"""
+        """Ensure movement component is available and update path progress"""
+        if not self._movement:
+            from components.movement_component import MovementComponent
+            self._movement = self.entity.get_component(MovementComponent)
+
         if not self.path or not self._movement:
             return
 
@@ -124,7 +137,7 @@ class PathfindingComponent(Component):
 
     def clear_path(self) -> None:
         """Clear current path and reset state"""
-        if self.path:  # Only clear if there's actually a path
+        if self.path:
             self.path = []
             self.current_waypoint = 0
             if self._movement:
@@ -133,7 +146,6 @@ class PathfindingComponent(Component):
 
     def can_reach(self, target_x: float, target_y: float) -> bool:
         """Check if a path exists to target position"""
-        # Convert pixel coordinates to tile coordinates
         current_tile = (
             int(self.entity.position.x // self.tile_size),
             int(self.entity.position.y // self.tile_size)
@@ -143,7 +155,6 @@ class PathfindingComponent(Component):
             int(target_y // self.tile_size)
         )
 
-        # Get tilemap and validate tiles
         tilemap = self.entity.game_state.current_level.tilemap
         if not (0 <= target_tile[0] < tilemap.width and 
                 0 <= target_tile[1] < tilemap.height):
@@ -152,7 +163,6 @@ class PathfindingComponent(Component):
         if not tilemap.is_walkable(*target_tile):
             return False
 
-        # Check if path exists
         path = find_path(
             current_tile,
             target_tile,
