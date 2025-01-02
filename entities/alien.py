@@ -119,3 +119,23 @@ class Alien(Entity):
             pixel_x = (tile_x + 0.5) * TILE_SIZE
             pixel_y = (tile_y + 0.5) * TILE_SIZE
             self.pathfinding.set_target(pixel_x, pixel_y) 
+
+    def take_damage(self, amount: float) -> None:
+        """Delegate damage handling to health component"""
+        if self.health:
+            self.health.take_damage(amount)
+
+    def heal(self, amount: float) -> None:
+        """Delegate healing to health component"""
+        if self.health:
+            self.health.heal(amount)
+
+    def change_morale(self, amount: float) -> None:
+        """Delegate morale changes to health component"""
+        if self.health:
+            self.health.change_morale(amount)
+
+    @property
+    def is_alive(self) -> bool:
+        """Check if entity is alive via health component"""
+        return self.health.is_alive if self.health else False 

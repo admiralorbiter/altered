@@ -21,6 +21,9 @@ class Human(BaseEnemy):
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
         
+        # Set size for collision detection
+        self.size = pygame.math.Vector2(32, 32)
+        
         # Combat statistics
         self.max_health = 80  # Maximum health points
         self.health = self.max_health
@@ -106,9 +109,8 @@ class Human(BaseEnemy):
             self.path_update_timer -= dt
             if self.path_update_timer <= 0:
                 self.path = find_path(current_tile, target_tile,
-                                    game_state.current_level.tilemap,
-                                    game_state, self)
-                self.path_update_timer = 0.5  # Update path every 0.5 seconds
+                                    game_state.current_level.tilemap)
+                self.path_update_timer = 0.5
         
     def set_target(self, tile_x, tile_y):
         """
@@ -129,3 +131,15 @@ class Human(BaseEnemy):
         self.path = find_path(current_tile, target_tile, 
                              self.game_state.current_level.tilemap,
                              self.game_state, self) 
+
+    def get_rect(self) -> pygame.Rect:
+        """
+        Get the collision rectangle for this entity.
+        Returns a pygame Rect centered on the entity's position.
+        """
+        return pygame.Rect(
+            self.position.x - self.size.x/2,
+            self.position.y - self.size.y/2,
+            self.size.x,
+            self.size.y
+        ) 

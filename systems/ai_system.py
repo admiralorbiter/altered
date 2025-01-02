@@ -154,41 +154,26 @@ class AISystem:
                 current_tile = (int(current_pos.x // TILE_SIZE),
                               int(current_pos.y // TILE_SIZE))
                 
-                # Remove any existing path reservations for this enemy
-                game_state.path_reservation_system.clear_reservations(enemy)
-                
                 # Calculate ideal position to maintain minimum distance from target
                 direction = (target_pos - current_pos).normalize()
                 chase_pos = target_pos - direction * enemy.min_distance
-                
-                target_tile = (int(chase_pos.x // TILE_SIZE),
+                chase_tile = (int(chase_pos.x // TILE_SIZE),
                              int(chase_pos.y // TILE_SIZE))
                 
-                # Calculate when enemy should arrive based on distance and speed
-                estimated_time = game_state.current_time + (distance / enemy.speed)
-                
-                # Find path while considering other entities' reserved paths
-                path = find_path(current_tile, target_tile,
+                # Find path to chase position
+                path = find_path(current_tile, chase_tile, 
                                game_state.current_level.tilemap,
-                               game_state, enemy)
-                               
+                               game_state)
+                
                 if path:
-                    # Reserve each tile along the path with estimated arrival times
-                    for i, tile in enumerate(path):
-                        arrival_time = estimated_time * (i / len(path))
-                        game_state.path_reservation_system.reserve_tile(
-                            tile, enemy, arrival_time)
-                        
-                    # Set up movement along the calculated path
-                    enemy.path = path
-                    if len(path) > 1:
-                        enemy.current_waypoint = 1
-                        next_tile = path[enemy.current_waypoint]
-                        enemy.target_position = pygame.math.Vector2(
-                            (next_tile[0] + 0.5) * TILE_SIZE,
-                            (next_tile[1] + 0.5) * TILE_SIZE
-                        )
-                        enemy.moving = True
+                    # Set next waypoint
+                    enemy.current_waypoint = 1 if len(path) > 1 else 0
+                    next_tile = path[enemy.current_waypoint]
+                    enemy.target_position = pygame.math.Vector2(
+                        (next_tile[0] + 0.5) * TILE_SIZE,
+                        (next_tile[1] + 0.5) * TILE_SIZE
+                    )
+                    enemy.moving = True
             else:
                 # Stop moving if already at minimum distance from target
                 enemy.moving = False

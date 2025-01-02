@@ -6,7 +6,7 @@ class PathReservationSystem:
     def __init__(self):
         self.reserved_tiles = {}  # {(x,y): entity}
         self.entity_paths = {}    # {entity: [(x,y), ...]}
-
+        
     def reserve_path(self, entity, path: List[Tuple[int, int]]) -> bool:
         """
         Attempt to reserve a path for an entity
@@ -14,31 +14,36 @@ class PathReservationSystem:
         """
         if not path:
             return False
-
-        # Clear entity's previous path
+            
+        # Clear entity's previous path first
         self.clear_entity_path(entity)
-
+        
         # Check if any tiles are already reserved by other entities
         for tile in path:
             if tile in self.reserved_tiles and self.reserved_tiles[tile] != entity:
                 return False
-
+                
         # Reserve all tiles in the path
         for tile in path:
             self.reserved_tiles[tile] = entity
         self.entity_paths[entity] = path
         return True
-
+        
     def clear_entity_path(self, entity) -> None:
         """Remove all path reservations for an entity"""
         if entity in self.entity_paths:
             # Clear tile reservations
-            for tile in self.entity_paths[entity]:
+            path = self.entity_paths[entity]
+            for tile in path:
                 if tile in self.reserved_tiles and self.reserved_tiles[tile] == entity:
                     del self.reserved_tiles[tile]
             # Clear path
             del self.entity_paths[entity]
-
+            
+    def clear_reservations(self, entity) -> None:
+        """Alias for clear_entity_path for backwards compatibility"""
+        self.clear_entity_path(entity)
+        
     def is_tile_reserved(self, tile: Tuple[int, int], entity=None) -> bool:
         """Check if a tile is reserved by another entity"""
         if tile not in self.reserved_tiles:
@@ -63,11 +68,16 @@ def get_neighbors(pos: Tuple[int, int], tilemap) -> List[Tuple[int, int]]:
     return neighbors
 
 def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=None, entity=None) -> List[Tuple[int, int]]:
-    """A* pathfinding algorithm with path reservation support"""
-    # Validate start and end positions
+    """A* pathfinding algorithm with optional path reservation"""
+    # Early exit for invalid inputs
+    if not tilemap or not start or not end:
+        return None
+        
+    # Validate start position
     if not tilemap.is_walkable(*start):
         return None
         
+    # Find nearest walkable end position if needed
     if not tilemap.is_walkable(*end):
         # Search in expanding radius for walkable tile
         for radius in range(1, 6):  # Try up to 5 tiles away
@@ -84,15 +94,16 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         else:
             return None
 
-    # Initialize data structures
+    # Initialize A* algorithm
     frontier = PriorityQueue()
     frontier.put((0, start))
-    
     came_from = {start: None}
     cost_so_far = {start: 0}
     
+    # Get path reservation system if available
     path_system = getattr(game_state, 'path_reservation_system', None) if game_state else None
     
+    # A* main loop
     while not frontier.empty():
         current = frontier.get()[1]
         
@@ -100,19 +111,18 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
             break
             
         for next_pos in get_neighbors(current, tilemap):
-            # Allow passing through tiles reserved by self
+            # Skip if tile is reserved by another entity
             if path_system and path_system.is_tile_reserved(next_pos, entity):
                 continue
                 
             new_cost = cost_so_far[current] + 1
-            
             if next_pos not in cost_so_far or new_cost < cost_so_far[next_pos]:
                 cost_so_far[next_pos] = new_cost
                 priority = new_cost + manhattan_distance(next_pos, end)
                 frontier.put((priority, next_pos))
                 came_from[next_pos] = current
 
-    # Build path
+    # Reconstruct path
     if end not in came_from:
         return None
         
@@ -123,8 +133,8 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
         current = came_from[current]
     path.reverse()
     
-    # Try to reserve the path
-    if path_system:
+    # Try to reserve path if system exists
+    if path_system and entity:
         if not path_system.reserve_path(entity, path):
             return None
     
