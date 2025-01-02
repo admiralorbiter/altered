@@ -142,3 +142,8 @@ class Cat(Entity):
     def entity_id(self):
         """Unique identifier for this cat"""
         return self._entity_id 
+
+    def take_damage(self, amount: float) -> None:
+        """Delegate damage handling to HealthComponent"""
+        if self.health:
+            self.health.take_damage(amount) 
