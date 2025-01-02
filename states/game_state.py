@@ -119,11 +119,11 @@ class GameState(State):
         screen.fill(BLACK)
         
         if self.current_level:
-            # Create world view
+            # Create world surface at window size
             world_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
             world_surface.fill(BLACK)
             
-            # Render the level with camera position from camera system
+            # Render the level with camera position
             self.current_level.render(world_surface, 
                                     self.camera_system.position.x, 
                                     self.camera_system.position.y)
@@ -131,13 +131,7 @@ class GameState(State):
             # Draw wire system preview
             self.wire_system.draw(world_surface)
             
-            # Apply zoom from camera system
-            if self.camera_system.zoom_level != 1.0:
-                scaled_size = (int(WINDOW_WIDTH * self.camera_system.zoom_level),
-                             int(WINDOW_HEIGHT * self.camera_system.zoom_level))
-                world_surface = pygame.transform.scale(world_surface, scaled_size)
-            
-            # Blit the world surface to the screen
+            # Blit directly without scaling
             screen.blit(world_surface, (0, 0))
             
             # Draw UI elements

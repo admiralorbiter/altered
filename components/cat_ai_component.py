@@ -41,7 +41,6 @@ class CatAIComponent(Component):
         if self.state == EntityState.WORKING:
             # If we don't have a task anymore, go back to wandering
             if not self._task.has_task():
-                print(f"[AI DEBUG] No task, returning to wandering")  # Debug line
                 self._change_state(EntityState.WANDERING)
                 return
             
@@ -53,7 +52,6 @@ class CatAIComponent(Component):
                 
                 # Update task progress
                 if self._task.update(dt):  # Task completed
-                    print(f"[AI DEBUG] Task completed, returning to wandering")  # Debug line
                     self._movement.allow_movement()  # Allow movement again
                     self._change_state(EntityState.WANDERING)
                 return
@@ -102,7 +100,6 @@ class CatAIComponent(Component):
 
     def _change_state(self, new_state: EntityState) -> None:
         """Switch AI state with proper cleanup"""
-        print(f"[AI DEBUG] Changing state from {self.state} to {new_state}")  # Debug line
         self.state = new_state
         
         # Reset relevant timers and states

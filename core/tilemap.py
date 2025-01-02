@@ -92,8 +92,8 @@ class TileMap:
         # Calculate visible area
         start_x = max(0, int(camera_x // TILE_SIZE))
         start_y = max(0, int(camera_y // TILE_SIZE))
-        end_x = min(self.width, int((camera_x + WINDOW_WIDTH / zoom_level) // TILE_SIZE) + 1)
-        end_y = min(self.height, int((camera_y + WINDOW_HEIGHT / zoom_level) // TILE_SIZE) + 1)
+        end_x = min(self.width, int((camera_x + WINDOW_WIDTH / zoom_level) // TILE_SIZE) + 3)
+        end_y = min(self.height, int((camera_y + WINDOW_HEIGHT / zoom_level) // TILE_SIZE) + 3)
         
         # First render terrain tiles
         for y in range(start_y, end_y):

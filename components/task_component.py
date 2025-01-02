@@ -123,7 +123,6 @@ class TaskComponent(Component):
         if not self.current_task:
             return
         
-        print(f"[TASK DEBUG] Completing task at {self._task_position}")  # Debug line
         self.entity.game_state.task_system.complete_task(self.current_task)
         self.current_task = None
         self._task_position = None
