@@ -6,6 +6,7 @@ from utils.config import *
 import random
 
 from utils.pathfinding import find_path
+from components.capture_component import CaptureComponent
 
 class BaseEnemy(Entity, ABC):
     """
@@ -14,6 +15,9 @@ class BaseEnemy(Entity, ABC):
     """
     def __init__(self, x, y):
         super().__init__(x, y)
+        
+        # Add CaptureComponent to the enemy
+        self.capture = self.add_component(CaptureComponent(self))
         
         # Movement and positioning constraints
         self.min_distance = TILE_SIZE * 0.9  # Minimum distance to maintain from target

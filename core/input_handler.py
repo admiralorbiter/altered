@@ -27,6 +27,38 @@ class InputHandler:
         elif event.key == pygame.K_F3:
             self.game_state.debug_ui.toggle()
             return True
+        elif event.key == pygame.K_c:
+            # Get selected aliens
+            selected_aliens = [alien for alien in self.game_state.current_level.aliens if alien.selected]
+            
+            # Get nearest enemy to each selected alien
+            for alien in selected_aliens:
+                nearest_enemy = None
+                min_distance = float('inf')
+                
+                # Find nearest enemy within capture range
+                for entity in self.game_state.current_level.entity_manager.entities:
+                    if isinstance(entity, BaseEnemy):
+                        distance = (entity.position - alien.position).length()
+                        if distance <= alien.capture_range and distance < min_distance:
+                            min_distance = distance
+                            nearest_enemy = entity
+                
+                # Attempt capture if enemy found
+                if nearest_enemy and alien.capture:
+                    alien.capture.attempt_capture(nearest_enemy)
+            
+            return True
+        elif event.key == pygame.K_r:  # Add release key handler
+            # Get selected aliens
+            selected_aliens = [alien for alien in self.game_state.current_level.aliens if alien.selected]
+            
+            # Release any carried targets
+            for alien in selected_aliens:
+                if alien.capture and alien.capture.carrying_target:
+                    alien.capture.release_target()
+            
+            return True
         return False
 
     def _handle_mouse_click(self, event):

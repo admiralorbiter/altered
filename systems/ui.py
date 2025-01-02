@@ -178,8 +178,8 @@ class HUD(UIElement):
         """Release the currently captured target from the selected alien"""
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
                              if alien.selected), None)
-        if selected_alien and selected_alien.carrying_target:
-            selected_alien.release_target()
+        if selected_alien and selected_alien.capture and selected_alien.capture.carrying_target:
+            selected_alien.capture.release_target()
             self.release_button.visible = False
             
     def update(self, dt):

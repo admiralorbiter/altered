@@ -41,9 +41,21 @@ class CaptureComponent(Component):
         if not target_capture:
             return False
 
+        # If target is already being carried, ignore
+        if target_capture.capture_state == CaptureState.CARRIED:
+            return False
+
+        # If we're already carrying someone, release them first
+        if self.carrying_target:
+            self.release_target()
+
         # Handle different capture states
         if target_capture.capture_state == CaptureState.NONE:
-            return self.attempt_knockout(target)
+            success = self.attempt_knockout(target)
+            if success:
+                # Start carrying immediately after knockout
+                self.start_carrying(target)
+            return success
         elif target_capture.capture_state == CaptureState.UNCONSCIOUS:
             return self.start_carrying(target)
         return False
@@ -53,6 +65,9 @@ class CaptureComponent(Component):
         target_capture = target.get_component(CaptureComponent)
         if target_capture:
             target_capture.capture_state = CaptureState.UNCONSCIOUS
+            # Set unconscious timer on the target
+            if hasattr(target, 'unconscious_timer'):
+                target.unconscious_timer = 10.0  # 10 seconds unconscious
             return True
         return False
 

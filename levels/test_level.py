@@ -33,6 +33,15 @@ class TestLevel(BaseLevel):
         # Create one alien (pink) for testing controls
         alien = Alien(center_x, center_y, (255, 192, 203, 128))
         alien.game_state = self.game_state
+        
+        # Make alien invincible for testing
+        if alien.health:  # Using the health component that's already added in Alien.__init__
+            alien.health.is_invincible = True
+            alien.health.max_health = 1000000  # Using a very large number instead of inf
+            alien.health.health = 1000000      # Using health instead of current_health
+            alien.health.max_morale = 1000000  # Also set high morale
+            alien.health.morale = 1000000
+        
         self.aliens.append(alien)
         self.entity_manager.add_entity(alien)
         
