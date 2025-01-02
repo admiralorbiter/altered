@@ -91,18 +91,26 @@ class CaptureComponent(Component):
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw capture range and status indicators"""
         if self.entity.get_component(SelectableComponent).is_selected:
-            # Draw capture range circle
+            # Get zoom level from game state
+            zoom_level = self.entity.game_state.zoom_level
+            
+            # Calculate screen position with zoom
             screen_pos = (
-                self.entity.position.x - camera_x,
-                self.entity.position.y - camera_y
+                (self.entity.position.x - camera_x) * zoom_level,
+                (self.entity.position.y - camera_y) * zoom_level
             )
+            
+            # Draw capture range circle scaled by zoom
             pygame.draw.circle(surface, (255, 0, 0), 
                              (int(screen_pos[0]), int(screen_pos[1])),
-                             int(self.capture_range), 1)
+                             int(self.capture_range * zoom_level), 1)
             
             # Draw line to carried target
             if self.carrying_target:
+                target_pos = (
+                    (self.carrying_target.position.x - camera_x) * zoom_level,
+                    (self.carrying_target.position.y - camera_y) * zoom_level
+                )
                 pygame.draw.line(surface, (255, 0, 0),
                                screen_pos,
-                               (self.carrying_target.position.x - camera_x,
-                                self.carrying_target.position.y - camera_y), 2) 
+                               target_pos, 2) 

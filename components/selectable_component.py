@@ -33,10 +33,4 @@ class SelectableComponent(Component):
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw selection indicator"""
-        super().render(surface, camera_x, camera_y)
-        if self.selected:
-            pos = (
-                int(self.entity.position.x - camera_x),
-                int(self.entity.position.y - camera_y)
-            )
-            pygame.draw.circle(surface, (255, 255, 0), pos, 20, 1) 
+        pass 

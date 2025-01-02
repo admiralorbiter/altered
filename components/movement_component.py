@@ -101,22 +101,8 @@ class MovementComponent(Component):
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw movement debug info"""
-        if self.moving and self.target_position:
-            # Draw line to target
-            start_pos = (
-                int(self.entity.position.x - camera_x),
-                int(self.entity.position.y - camera_y)
-            )
-            end_pos = (
-                int(self.target_position.x - camera_x),
-                int(self.target_position.y - camera_y)
-            )
-            # Draw movement line
-            pygame.draw.line(surface, (255, 255, 0), start_pos, end_pos, 2)
-            # Draw current position marker
-            pygame.draw.circle(surface, (255, 0, 0), start_pos, 3)
-            # Draw target marker
-            pygame.draw.circle(surface, (0, 255, 0), end_pos, 3) 
+        # Remove or comment out movement debug visualization
+        pass
 
     def stop(self) -> None:
         """Stop current movement and prevent new movement"""
