@@ -8,6 +8,7 @@ from entities.items.food import Food
 from utils.config import TILE_SIZE
 import pygame
 from typing import Optional
+import math
 
 class CatAIComponent(Component):
     def __init__(self, entity):
@@ -31,13 +32,24 @@ class CatAIComponent(Component):
             self._movement = self.entity.get_component(MovementComponent)
             self._pathfinding = self.entity.get_component(PathfindingComponent)
             return
+
+        # Debug current state
         
-        # Always check for tasks if we're wandering and not moving
-        if self.state == EntityState.WANDERING and not self._movement.moving:
-            if self._try_find_task():
-                self._change_state(EntityState.WORKING)
-                return
-        
+        if self.state == EntityState.WANDERING:
+            # Update wander timer
+            self.wander_timer -= dt
+            
+            # Check if we should pick a new target
+            if not self._movement.moving or self.wander_timer <= 0:
+                
+                if self._try_find_task():
+                    self._change_state(EntityState.WORKING)
+                    return
+                
+                # Force new target selection if not moving or timer expired
+                self._pick_random_wander_target()
+                self.wander_timer = random.uniform(3.0, 8.0)
+
         if self.state == EntityState.WORKING:
             # If we don't have a task anymore, go back to wandering
             if not self._task.has_task():
@@ -69,14 +81,6 @@ class CatAIComponent(Component):
                 if not self._pathfinding.set_target(target_x, target_y):
                     self._task.stop()
                     self._change_state(EntityState.WANDERING)
-
-        elif self.state == EntityState.WANDERING:
-            # Update wander timer
-            self.wander_timer -= dt
-            if self.wander_timer <= 0:
-                # Pick new random position and reset timer
-                self._pick_random_wander_target()
-                self.wander_timer = random.uniform(3.0, 8.0)
 
     def _try_find_task(self) -> bool:
         """Attempt to find and claim a task"""
@@ -126,32 +130,35 @@ class CatAIComponent(Component):
 
     def _pick_random_wander_target(self) -> None:
         """Pick a random position to wander to"""
-        if not self._movement:
+        if not self._movement or not self._pathfinding:
             return
-        
-        # Get level dimensions
-        level = self.entity.game_state.current_level
-        if hasattr(level.tilemap, 'width') and hasattr(level.tilemap, 'height'):
-            width, height = level.tilemap.width, level.tilemap.height
-        else:
-            width, height = 20, 20
         
         # Get current position in tiles
         current_x = int(self.entity.position.x / TILE_SIZE)
         current_y = int(self.entity.position.y / TILE_SIZE)
-        
-        # Try to find a valid position near current position first
-        for radius in range(5, 21, 5):  # Try increasingly larger areas
-            for _ in range(4):  # Try a few times at each radius
-                # Pick random offset within radius
-                dx = random.randint(-radius, radius)
-                dy = random.randint(-radius, radius)
                 
-                target_x = (current_x + dx) * TILE_SIZE + (TILE_SIZE / 2)
-                target_y = (current_y + dy) * TILE_SIZE + (TILE_SIZE / 2)
+        # Try increasingly larger areas until valid path found
+        for radius in [2, 3, 4]:
+            
+            # Try multiple angles at this radius
+            angles = [i * (2 * math.pi / 8) + random.uniform(-0.2, 0.2) for i in range(8)]
+            random.shuffle(angles)  # Randomize order
+            
+            for angle in angles:
+                dx = int(round(math.cos(angle) * radius))
+                dy = int(round(math.sin(angle) * radius))
                 
-                # Ensure within bounds
-                if 0 <= target_x < width * TILE_SIZE and 0 <= target_y < height * TILE_SIZE:
-                    if self._pathfinding.set_target(target_x, target_y):
-                        return
-        
+                target_x = current_x + dx
+                target_y = current_y + dy
+                                
+                # Skip if out of bounds
+                if not (0 <= target_x < self.entity.game_state.current_level.tilemap.width and 
+                       0 <= target_y < self.entity.game_state.current_level.tilemap.height):
+                    continue
+                
+                # Convert to pixel coordinates and try path
+                pixel_x = (target_x + 0.5) * TILE_SIZE
+                pixel_y = (target_y + 0.5) * TILE_SIZE
+                
+                if self._pathfinding.set_target(pixel_x, pixel_y):
+                    return    

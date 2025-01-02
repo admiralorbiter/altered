@@ -16,11 +16,14 @@ class Cat(Entity):
     Uses component-based architecture for modularity and maintainability.
     """
     def __init__(self, x: int, y: int, game_state):
+        # Set entity_id first before any component initialization
+        self._entity_id = id(self)
+        
         # Convert tile coordinates to pixel coordinates
         pixel_x = (x + 0.5) * TILE_SIZE
         pixel_y = (y + 0.5) * TILE_SIZE
         super().__init__(pixel_x, pixel_y)
-        
+                
         # Store game state reference
         self.game_state = game_state
         
@@ -38,13 +41,11 @@ class Cat(Entity):
         self.pathfinding = self.add_component(PathfindingComponent(self))
         self.ai = self.add_component(CatAIComponent(self))
         self.task = self.add_component(TaskComponent(self))
-        
+                
         # Initialize components
         for component in self.components.values():
             if hasattr(component, 'start'):
                 component.start()
-        
-        self._entity_id = id(self)
 
     def update(self, dt: float) -> None:
         """Update cat and all its components"""

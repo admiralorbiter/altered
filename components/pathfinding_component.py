@@ -35,20 +35,19 @@ class PathfindingComponent(Component):
             int(target_y // self.tile_size)
         )
 
-        # Check if current position is walkable
+        # Get tilemap and dimensions
         tilemap = self.entity.game_state.current_level.tilemap
-        if not tilemap.is_walkable(current_tile[0], current_tile[1]):
-            # Try to find nearest walkable tile
-            for dx, dy in [(0,0), (0,1), (1,0), (0,-1), (-1,0)]:
-                test_x = current_tile[0] + dx
-                test_y = current_tile[1] + dy
-                if tilemap.is_walkable(test_x, test_y):
-                    self.entity.position.x = (test_x + 0.5) * self.tile_size
-                    self.entity.position.y = (test_y + 0.5) * self.tile_size
-                    current_tile = (test_x, test_y)
-                    break
-            else:
-                return False
+        map_width = tilemap.width
+        map_height = tilemap.height
+
+        # Validate tiles are within map bounds
+        if (not (0 <= current_tile[0] < map_width and 0 <= current_tile[1] < map_height) or
+            not (0 <= target_tile[0] < map_width and 0 <= target_tile[1] < map_height)):
+            return False
+
+        # Validate tiles are walkable
+        if not tilemap.is_walkable(*current_tile) or not tilemap.is_walkable(*target_tile):
+            return False
 
         # Clear existing path
         self.clear_path()
@@ -61,21 +60,6 @@ class PathfindingComponent(Component):
             self.entity.game_state,
             self.entity
         )
-
-        if not self.path:
-            # Try to find path to adjacent tiles
-            for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
-                alt_target = (target_tile[0] + dx, target_tile[1] + dy)
-                if tilemap.is_walkable(alt_target[0], alt_target[1]):
-                    self.path = find_path(
-                        current_tile,
-                        alt_target,
-                        tilemap,
-                        self.entity.game_state,
-                        self.entity
-                    )
-                    if self.path:
-                        break
 
         if self.path:
             self.current_waypoint = 0
