@@ -11,9 +11,9 @@ class HumanAIComponent(Component):
         super().__init__(entity)
         self.state = 'patrol'
         self.target = None
-        self.attack_range = TILE_SIZE * 1.2  # Melee range
+        self.attack_range = entity.attack_range  # Use entity's attack range
         self.detection_range = TILE_SIZE * 8  # Detection range
-        self.attack_cooldown = 1.0
+        self.attack_cooldown = entity.attack_cooldown  # Use entity's cooldown
         self.attack_timer = 0.0
         self.path_update_timer = 0.3
         self._movement = None

@@ -65,21 +65,13 @@ class BaseEnemy(Entity, ABC):
             )) 
         
     def update_ai_state(self, dt, game_state):
-        """
-        Updates the enemy's AI state based on nearby targets and current conditions.
-        Handles target detection, state transitions, and combat engagement.
-        
-        Args:
-            dt (float): Delta time since last update
-            game_state: Current game state containing level and entity information
-        """
-        # Find nearest target (alien or cat)
+        """Updates the enemy's AI state based on nearby targets"""
         nearest_target = None
         min_distance = float('inf')
         
         # Check aliens
         for alien in game_state.current_level.aliens:
-            if alien.active:
+            if alien.active and not (hasattr(alien, 'health') and alien.health.is_corpse):
                 distance = (alien.position - self.position).length()
                 if distance < min_distance:
                     min_distance = distance

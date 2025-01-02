@@ -49,8 +49,12 @@ class Cat(Entity):
 
     def update(self, dt: float) -> None:
         """Update cat and all its components"""
-        if not self.health.is_alive:
+        if self.health and self.health.is_corpse:
+            # Only allow minimal updates when dead
+            if hasattr(self, 'capture') and self.capture.carrier:
+                self.position = self.capture.carrier.position.copy()
             return
+        
         super().update(dt)
 
     @classmethod
@@ -81,8 +85,8 @@ class Cat(Entity):
 
     @property
     def is_dead(self) -> bool:
-        """Compatibility property for death state"""
-        return not self.health.is_alive if self.health else True
+        """Check if cat is dead (is a corpse)"""
+        return self.health.is_corpse if self.health else True
 
     @property
     def state(self):

@@ -106,19 +106,14 @@ class Alien(Entity):
         super().render_with_offset(surface, camera_x, camera_y) 
 
     def set_target(self, tile_x: int, tile_y: int) -> None:
-        """
-        Set movement target for the alien.
-        Delegates to pathfinding component.
+        """Set movement target for the alien"""
+        if self.health and self.health.is_corpse:
+            return  # Dead aliens can't move
         
-        Args:
-            tile_x: Target tile X coordinate
-            tile_y: Target tile Y coordinate
-        """
         if self.pathfinding:
-            # Convert tile coordinates to pixel coordinates (centered)
             pixel_x = (tile_x + 0.5) * TILE_SIZE
             pixel_y = (tile_y + 0.5) * TILE_SIZE
-            self.pathfinding.set_target(pixel_x, pixel_y) 
+            self.pathfinding.set_target(pixel_x, pixel_y)
 
     def take_damage(self, amount: float) -> None:
         """Delegate damage handling to health component"""
@@ -139,3 +134,13 @@ class Alien(Entity):
     def is_alive(self) -> bool:
         """Check if entity is alive via health component"""
         return self.health.is_alive if self.health else False 
+
+    def update(self, dt: float) -> None:
+        """Update alien and components"""
+        if self.health and self.health.is_corpse:
+            # Only allow minimal updates when dead
+            if self.capture and self.capture.carrier:
+                self.position = self.capture.carrier.position.copy()
+            return
+        
+        super().update(dt) 

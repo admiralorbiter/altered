@@ -207,13 +207,9 @@ class HUD(UIElement):
         else:
             self.capture_button.visible = False
             self.release_button.visible = False
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.capture_button.visible and self.capture_button.rect.collidepoint(mouse_pos):
-                self.attempt_capture()
-        super().handle_event(event)
+        
+    def draw(self, surface):
+        super().draw(surface)
 
 # UI component for handling wire placement mode and preview
 class WireUI(UIElement):

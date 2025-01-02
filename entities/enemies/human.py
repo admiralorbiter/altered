@@ -28,6 +28,12 @@ class Human(BaseEnemy):
         # Set size for collision detection
         self.size = pygame.math.Vector2(32, 32)
         
+        # Combat attributes - Set these BEFORE creating AI component
+        self.attack_power = 15
+        self.attack_range = TILE_SIZE * 1.2
+        self.attack_cooldown = 1.0
+        self.attack_timer = 0
+        
         # Add components
         self.movement = MovementComponent(self)
         self.add_component(self.movement)
@@ -53,12 +59,6 @@ class Human(BaseEnemy):
         self.detection_renderer = DetectionRangeRenderer()
         self.character_renderer = HumanRenderer(color=(200, 150, 150, 200))
         self.capture_renderer = CaptureEffectRenderer()
-        
-        # Combat attributes
-        self.attack_power = 15
-        self.attack_range = TILE_SIZE * 1.2
-        self.attack_cooldown = 1.0
-        self.attack_timer = 0
 
     def update(self, dt):
         if self.capture_state != CaptureState.NONE:
@@ -136,10 +136,21 @@ class Human(BaseEnemy):
             return False
             
         distance = (target.position - self.position).length()
-        if distance > self.ai.attack_range:  # Use AI component's range
+        if distance > self.attack_range:
             return False
             
+        # Apply damage and check for kill
         target.take_damage(self.attack_power)
+        
+        # Reset attack timer
+        self.attack_timer = self.attack_cooldown
+        
+        # If target died, stop targeting it
+        if hasattr(target, 'health') and target.health.is_corpse:
+            if self.target == target:
+                self.target = None
+                self.state = 'patrol'
+        
         return True 
 
     def move_to_target(self, target_pos):
