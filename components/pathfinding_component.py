@@ -43,13 +43,11 @@ class PathfindingComponent(Component):
                 test_x = current_tile[0] + dx
                 test_y = current_tile[1] + dy
                 if tilemap.is_walkable(test_x, test_y):
-                    print(f"[DEBUG] Moving from unwalkable tile {current_tile} to walkable tile ({test_x}, {test_y})")
                     self.entity.position.x = (test_x + 0.5) * self.tile_size
                     self.entity.position.y = (test_y + 0.5) * self.tile_size
                     current_tile = (test_x, test_y)
                     break
             else:
-                print(f"[DEBUG] Entity stuck in unwalkable position {current_tile}")
                 return False
 
         # Clear existing path
@@ -77,7 +75,6 @@ class PathfindingComponent(Component):
                         self.entity
                     )
                     if self.path:
-                        print(f"[DEBUG] Found alternate path to ({alt_target[0]}, {alt_target[1]})")
                         break
 
         if self.path:
@@ -85,7 +82,6 @@ class PathfindingComponent(Component):
             self._set_next_waypoint()
             return True
         
-        print(f"[DEBUG] No path found from {current_tile} to {target_tile} or adjacent tiles")
         return False
 
     def waypoint_reached(self) -> None:

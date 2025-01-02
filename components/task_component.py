@@ -26,12 +26,10 @@ class TaskComponent(Component):
     def start_task(self, task) -> bool:
         """Attempt to start a new task"""
         if self.current_task:
-            print(f"[DEBUG] Already has task {self.current_task.type} at {self.current_task.position}")
             return False
             
         # Need to check if task is already assigned to another entity
         if task.assigned_to and task.assigned_to != id(self.entity):
-            print(f"[DEBUG] Task at {task.position} already assigned to {task.assigned_to}")
             return False
             
         self.current_task = task
@@ -39,7 +37,6 @@ class TaskComponent(Component):
         self._work_progress = 0
         self._work_time = getattr(task, 'work_time', 2.0)
         
-        print(f"[DEBUG] Starting task {task.type} at {task.position}")
         return True
 
     def stop(self) -> None:
@@ -60,45 +57,31 @@ class TaskComponent(Component):
     def update(self, dt: float) -> bool:
         """Update task progress"""
         if not self.current_task:
-            print("[TASK DEBUG] No current task")
             return False
-        
-        # Debug task type information
-        print(f"[TASK DEBUG] Task type details:")
-        print(f"  - Current type: {self.current_task.type} (type: {type(self.current_task.type)})")
-        print(f"  - Expected type: {TaskType.WIRE_CONSTRUCTION} (type: {type(TaskType.WIRE_CONSTRUCTION)})")
-        print(f"  - Comparison result: {self.current_task.type == TaskType.WIRE_CONSTRUCTION}")
         
         # Only handle wire construction tasks
         if self.current_task.type != TaskType.WIRE_CONSTRUCTION:
-            print(f"[TASK DEBUG] Wrong task type: {self.current_task.type}")
             return False
         
         # Check if we're at the task position
         if not self._is_at_task_position():
-            print(f"[TASK DEBUG] Not at position {self._task_position}")
             return False
         
         # Start construction if not already building
         if not self._is_building:
             self._is_building = True
-            print(f"[TASK DEBUG] Starting construction at {self._task_position}")
         
         # Update work progress
         old_progress = self._work_progress
         self._work_progress += dt
-        print(f"[TASK DEBUG] Progress updated: {old_progress:.1f} -> {self._work_progress:.1f} / {self._work_time}")
         
         # Update wire construction progress in wire system
         wire_system = self.entity.game_state.wire_system
         if not wire_system.update_construction_progress(self._task_position, dt):
-            print(f"[TASK DEBUG] Wire system update failed at {self._task_position}")
             return False
         
         if self._work_progress >= self._work_time:
-            print(f"[TASK DEBUG] Work complete ({self._work_progress:.1f} >= {self._work_time})")
             if not wire_system.complete_wire_construction(self._task_position):
-                print(f"[TASK DEBUG] Wire completion failed at {self._task_position}")
                 return False
             self._complete_task()
             return True
@@ -108,7 +91,6 @@ class TaskComponent(Component):
     def _is_at_task_position(self) -> bool:
         """Check if entity is close enough to work on task"""
         if not self._task_position:
-            print("[TASK DEBUG] No task position set")
             return False
             
         # Convert pixel coordinates to tile coordinates
@@ -128,10 +110,6 @@ class TaskComponent(Component):
             # If we were in range before, be more lenient about leaving
             is_in_range = manhattan_dist <= 2.2
         
-        # Print position info every frame while in range
-        if is_in_range:
-            print(f"[TASK DEBUG] At position: ({cat_x:.1f}, {cat_y:.1f}), Task: ({task_x}, {task_y}), Dist: {manhattan_dist:.2f}")
-        
         self._last_in_range = is_in_range
         return is_in_range
 
@@ -140,7 +118,6 @@ class TaskComponent(Component):
         if not self.current_task:
             return
         
-        print(f"[DEBUG] Completing task {self.current_task.type} at {self.current_task.position}")
         self.entity.game_state.task_system.complete_task(self.current_task)
         self.current_task = None
         self._task_position = None

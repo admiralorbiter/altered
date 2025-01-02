@@ -66,18 +66,15 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
     """A* pathfinding algorithm with path reservation support"""
     # Validate start and end positions
     if not tilemap.is_walkable(*start):
-        print(f"[DEBUG] Start position {start} is not walkable")
         return None
         
     if not tilemap.is_walkable(*end):
-        print(f"[DEBUG] Finding nearest walkable tile to {end}")
         # Search in expanding radius for walkable tile
         for radius in range(1, 6):  # Try up to 5 tiles away
             for dx in range(-radius, radius + 1):
                 for dy in range(-radius, radius + 1):
                     test_pos = (end[0] + dx, end[1] + dy)
                     if tilemap.is_walkable(*test_pos):
-                        print(f"[DEBUG] Found walkable alternative at {test_pos}")
                         end = test_pos
                         break
                 if tilemap.is_walkable(*end):
@@ -85,7 +82,6 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
             if tilemap.is_walkable(*end):
                 break
         else:
-            print(f"[DEBUG] No walkable tiles found near {end}")
             return None
 
     # Initialize data structures
@@ -118,7 +114,6 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
 
     # Build path
     if end not in came_from:
-        print(f"[DEBUG] No path found from {start} to {end}")
         return None
         
     path = []
@@ -131,9 +126,6 @@ def find_path(start: Tuple[int, int], end: Tuple[int, int], tilemap, game_state=
     # Try to reserve the path
     if path_system:
         if not path_system.reserve_path(entity, path):
-            print(f"[DEBUG] Path reservation failed for {entity}")
             return None
-        else:
-            print(f"[DEBUG] Path reserved successfully: {path}")
     
     return path 

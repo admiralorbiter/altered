@@ -24,7 +24,6 @@ class CatAIComponent(Component):
         self._movement = self.entity.get_component(MovementComponent)
         self._task = self.entity.get_component(TaskComponent)
         self._pathfinding = self.entity.get_component(PathfindingComponent)
-        print(f"[DEBUG] AI Component initialized with movement: {self._movement}, task: {self._task}, pathfinding: {self._pathfinding}")
 
     def update(self, dt: float) -> None:
         """Update AI behavior"""
@@ -38,12 +37,10 @@ class CatAIComponent(Component):
             if self._task._is_at_task_position():
                 if self._movement.moving:
                     self._movement.stop()  # Force stop when in position
-                    print(f"[WIRE DEBUG] Cat stopped at task {self._task._task_position}")
                     return
                 
                 # Update task progress
                 if self._task.update(dt):  # Task completed
-                    print(f"[WIRE DEBUG] Cat completed task at {self._task._task_position}")
                     self._movement.allow_movement()  # Allow movement again
                     self._change_state(EntityState.WANDERING)
                 return
@@ -59,7 +56,6 @@ class CatAIComponent(Component):
                 target_y = task_pos[1] * TILE_SIZE + (TILE_SIZE / 2)
                 
                 if not self._pathfinding.set_target(target_x, target_y):
-                    print(f"[DEBUG] Cannot reach task at {task_pos}, releasing task")
                     self._task.stop()
                     self._change_state(EntityState.WANDERING)
 
@@ -92,19 +88,11 @@ class CatAIComponent(Component):
             )
             
             if path:
-                print(f"[DEBUG] Found path to task at {task.position}, claiming task")
                 return self._task.start_task(task)
-            else:
-                print(f"[DEBUG] No path found to task at {task.position}, skipping")
         return False
 
     def _change_state(self, new_state: EntityState) -> None:
-        """Switch AI state with logging"""
-        old_state = self.state
-        print(f"[DEBUG] Cat state transition: {old_state} -> {new_state}")
-        print(f"  - Position: ({self.entity.position.x:.1f}, {self.entity.position.y:.1f})")
-        print(f"  - Has task: {bool(self._task.current_task)}")
-        print(f"  - Is moving: {self._movement.moving}")
+        """Switch AI state """
         self.state = new_state
         
         # Reset relevant timers and states
@@ -156,7 +144,5 @@ class CatAIComponent(Component):
                 # Ensure within bounds
                 if 0 <= target_x < width * TILE_SIZE and 0 <= target_y < height * TILE_SIZE:
                     if self._pathfinding.set_target(target_x, target_y):
-                        print(f"[DEBUG] Found valid wander target at ({target_x/TILE_SIZE:.1f}, {target_y/TILE_SIZE:.1f})")
                         return
         
-        print("[DEBUG] Failed to find valid wander target") 

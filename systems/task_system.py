@@ -34,14 +34,12 @@ class TaskSystem:
         """
         task = Task(type=type, position=position, priority=priority)
         self.available_tasks.append(task)
-        print(f"[DEBUG] New task added: {task.type} at {task.position}")
         return task
 
     def get_available_task(self, entity):
         """Find and assign the closest available task to an entity."""
         # First check if the entity already has a task assigned
         if entity in self.assigned_tasks:
-            print(f"[DEBUG] Entity already has task: {self.assigned_tasks[entity].type}")
             return self.assigned_tasks[entity]
 
         # Get available unassigned tasks
@@ -65,12 +63,10 @@ class TaskSystem:
         self.available_tasks.remove(task)
         task.assigned_to = id(entity)
         self.assigned_tasks[entity] = task
-        print(f"[DEBUG] Assigned task to entity {id(entity)}: {task.type} at {task.position}")
         return task
 
     def complete_task(self, task):
         """Complete and remove a task from the system"""
-        print(f"[DEBUG] Task completed: {task.type} at {task.position}")
         
         # Remove from available tasks if present
         if task in self.available_tasks:
@@ -98,8 +94,6 @@ class TaskSystem:
         task.unassign()
         if task not in self.available_tasks:
             self.available_tasks.append(task)
-            print(f"[DEBUG] Task returned to pool: {task.type} at {task.position}")
-
     def get_highest_priority_task(self, entity) -> Optional[Task]:
         """
         Find the highest priority task from the available tasks pool.
@@ -145,6 +139,4 @@ class TaskSystem:
         task.assigned_to = entity
         self.available_tasks.remove(task)
         self.assigned_tasks[entity] = task
-        
-        print(f"[DEBUG] Assigned task to entity: {task.type} at {task.position}")
         return True 

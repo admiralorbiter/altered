@@ -162,9 +162,6 @@ class WireSystem:
                     priority=priority
                 )
                 created_tasks.append(task)
-                print(f"[DEBUG] Created wire at {pos} with state:")
-                print(f"  - under_construction: {component.under_construction}")
-                print(f"  - is_built: {component.is_built}")
         
         return created_tasks
 
@@ -172,22 +169,18 @@ class WireSystem:
         """Complete wire construction at the given position"""
         wire = self.game_state.current_level.tilemap.get_electrical(position[0], position[1])
         if not wire:
-            print(f"[WIRE DEBUG] No wire found at {position} for completion")
             return False
         
         # Update wire state
         try:
             wire.under_construction = False
             wire.is_built = True
-            print(f"[WIRE DEBUG] Wire at {position} marked as built")
         except Exception as e:
-            print(f"[WIRE DEBUG] Error updating wire state: {e}")
             return False
         
         # Clear construction progress
         if position in self.construction_progress:
             del self.construction_progress[position]
-            print(f"[WIRE DEBUG] Cleared construction progress for {position}")
         
         self._update_wire_connections(position)
         return True
@@ -206,34 +199,24 @@ class WireSystem:
         
         # Add to tilemap
         self.game_state.current_level.tilemap.electrical_components[position] = wire
-        print(f"[DEBUG] Placed new wire at {position}")
         return True
 
     def update_construction_progress(self, position: tuple[int, int], dt: float) -> bool:
         """Update construction progress for a wire"""
         wire = self.game_state.current_level.tilemap.get_electrical(position[0], position[1])
         if not wire:
-            print(f"[WIRE DEBUG] No wire component found at {position}")
-            print(f"[WIRE DEBUG] Tilemap components: {self.game_state.current_level.tilemap.electrical_components.keys()}")
             return False
-        
-        # Debug wire object state
-        print(f"[WIRE DEBUG] Wire at {position} state:")
-        print(f"  - Type: {getattr(wire, 'type', 'unknown')}")
-        print(f"  - Attributes: {vars(wire)}")
+    
         
         if not hasattr(wire, '_under_construction') or not wire._under_construction:
-            print(f"[WIRE DEBUG] Wire not under construction")
             return False
         
         # Add progress tracking
         if position not in self.construction_progress:
             self.construction_progress[position] = 0.0
-            print(f"[WIRE DEBUG] Started progress tracking at {position}")
         
         old_progress = self.construction_progress[position]
         self.construction_progress[position] += dt
-        print(f"[WIRE DEBUG] Progress at {position}: {old_progress:.1f} -> {self.construction_progress[position]:.1f}")
         
         return True
 
@@ -243,7 +226,6 @@ class WireSystem:
         if wire:
             wire.under_construction = False
             wire.is_built = True
-            print(f"[DEBUG] Wire construction completed at {position}")
 
     def _update_wire_connections(self, position):
         """Update wire connections after construction"""

@@ -34,11 +34,9 @@ class Task:
         """Safely assign task to an entity by storing its ID"""
         self.assigned_to = id(entity)
         self._work_progress = 0.0  # Reset progress when reassigning
-        print(f"[DEBUG] Task assigned to entity ID: {self.assigned_to}")
 
     def unassign(self) -> None:
         """Clear task assignment"""
-        print(f"[DEBUG] Task unassigned from entity ID: {self.assigned_to}")
         self.assigned_to = None
         self._work_progress = 0.0  # Reset progress when unassigning
 

@@ -17,10 +17,6 @@ class ElectricalComponent:
     
     def __post_init__(self):
         """Initialize after dataclass fields are set"""
-        print(f"[DEBUG] Creating new ElectricalComponent:")
-        print(f"  - type: {self.type}")
-        print(f"  - under_construction: {self._under_construction}")
-        print(f"  - is_built: {self._is_built}")
     
     @property
     def under_construction(self):
@@ -29,7 +25,6 @@ class ElectricalComponent:
     @under_construction.setter
     def under_construction(self, value):
         self._under_construction = value
-        print(f"[DEBUG] ElectricalComponent under_construction set to {value}")
         
     @property
     def is_built(self):
@@ -38,7 +33,7 @@ class ElectricalComponent:
     @is_built.setter
     def is_built(self, value):
         self._is_built = value
-        print(f"[DEBUG] ElectricalComponent is_built set to {value}")
+        (f"[DEBUG] ElectricalComponent is_built set to {value}")
     
 
 @dataclass

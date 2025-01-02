@@ -37,12 +37,10 @@ class WireComponent(Component):
         task_comp = self.entity.get_component('task')
         if task_comp and not task_comp.current_task:
             if electrical_comp and electrical_comp.is_built:
-                print(f"[WIRE DEBUG] Wire construction completed at {wire_pos}")
                 self.wire_task = None
                 return
             
         # If pathfinding is complete and we're not moving
         if not self._pathfinding.path and not self.entity.get_component('movement').moving:
             if not task_comp or not task_comp.current_task:
-                print(f"[WIRE DEBUG] No active task at {wire_pos}")
                 self.wire_task = None

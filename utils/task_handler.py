@@ -68,7 +68,6 @@ class TaskHandler:
         
         if dx <= 1.1 and dy <= 1.1:  # Within range
             if not self.is_building:
-                print(f"[WIRE DEBUG] Starting construction at {wire_pos}")
                 self.is_building = True
                 self.entity.stop_movement()
                 self.entity.set_state(EntityState.WORKING)
@@ -77,7 +76,6 @@ class TaskHandler:
             
             # Update construction progress through wire system
             if self.entity.game_state.wire_system.update_construction_progress(wire_pos, dt):
-                print(f"[WIRE DEBUG] Construction complete at {wire_pos}!")
                 # Ensure wire is properly marked as built
                 wire = self.entity.game_state.current_level.tilemap.get_electrical(wire_pos[0], wire_pos[1])
                 if wire:
@@ -89,7 +87,6 @@ class TaskHandler:
                 self.entity.movement_handler.enable_pathfinding()
         else:
             if self.is_building:
-                print(f"[WIRE DEBUG] Moved away from construction site")
                 self.is_building = False
                 self.entity.set_state(EntityState.MOVING)  # Reset to moving if we leave construction site
                 # Re-enable pathfinding if we move away
@@ -102,12 +99,10 @@ class TaskHandler:
         
         # Check if task is already assigned to another entity
         if task.assigned_to and task.assigned_to != id(self.entity):
-            print(f"[DEBUG] Task already assigned to {task.assigned_to}, our id is {id(self.entity)}")
             return False
         
         self.current_task = task
         task.assigned_to = id(self.entity)
-        print(f"[DEBUG] Starting task {task.type} at {task.position} for cat {id(self.entity)}")
         return True
 
     def set_wire_task(self, position: Tuple[int, int], wire_type: str) -> bool:
