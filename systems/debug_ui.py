@@ -19,7 +19,7 @@ class DebugUI:
         """
         self.game_state = game_state
         self.font = pygame.font.Font(None, 24)
-        self.enabled = True
+        self.enabled = False
         self.position = (10, 10)
         self.line_height = 20
         self.background_color = (0, 0, 0, 128)

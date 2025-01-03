@@ -291,12 +291,6 @@ class CaptureUI(UIElement):
         super().__init__(10, WINDOW_HEIGHT - 75, 420, 30)  # Increased width for 3 buttons
         self.game_state = game_state
         
-        # Create capture mode toggle button
-        self.capture_mode_btn = Button(10, WINDOW_HEIGHT - 75, 130, 25,
-                                    "Capture Mode: OFF",
-                                    self.toggle_capture_mode)
-        self.add_child(self.capture_mode_btn)
-        
         # Create stealth mode toggle button
         self.stealth_mode_btn = Button(150, WINDOW_HEIGHT - 75, 130, 25,
                                     "Stealth: OFF",
@@ -317,21 +311,9 @@ class CaptureUI(UIElement):
         # Turn off other modes when wire mode is enabled
         if self.game_state.wire_mode:
             self.game_state.capture_system.capture_mode = False
-            self.capture_mode_btn.text = "Capture Mode: OFF"
             self.game_state.capture_system.stealth_mode = False
             self.stealth_mode_btn.text = "Stealth: OFF"
-    
-    def toggle_capture_mode(self):
-        """Toggle capture mode and disable wire mode"""
-        system = self.game_state.capture_system
-        system.capture_mode = not system.capture_mode
-        self.capture_mode_btn.text = f"Capture Mode: {'ON' if system.capture_mode else 'OFF'}"
-        
-        # Turn off wire mode when capture mode is enabled
-        if system.capture_mode:
-            self.game_state.wire_mode = False
-            self.wire_mode_btn.text = "Place Wire: OFF"
-    
+
     def toggle_stealth_mode(self):
         """Toggle stealth mode for capture operations"""
         system = self.game_state.capture_system

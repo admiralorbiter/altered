@@ -144,3 +144,9 @@ class Alien(Entity):
             return
         
         super().update(dt) 
+
+    def attempt_capture(self, target) -> bool:
+        """Delegate capture attempt to the capture component"""
+        if self.capture:
+            return self.capture.attempt_capture(target)
+        return False 
