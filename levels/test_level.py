@@ -11,106 +11,127 @@ import pygame
 
 class TestLevel(BaseLevel):
     """
-    Test level for debugging and feature testing.
-    Provides a controlled environment with basic entity interactions.
+    Test level with three distinct rooms:
+    1. Starting room with cats
+    2. Maze room for pathfinding testing
+    3. Enemy room for combat testing
     """
     def __init__(self, game_state):
         super().__init__(game_state)
         self.cats = []  # List of autonomous cat entities
         
     def initialize(self):
-        """
-        Set up a simple test environment with one alien, two cats,
-        food items, and patrolling enemies in a confined space.
-        """
-        # Create simple test layout
+        """Set up the three-room test environment"""
+        # Create the room layout
         self._create_test_map()
         
-        # Create a single alien in the center
-        center_x = MAP_WIDTH // 2
-        center_y = MAP_HEIGHT // 2
+        # Create alien in starting room (left room)
+        start_x = MAP_WIDTH // 6  # Left third of map
+        start_y = MAP_HEIGHT // 2
         
-        # Create one alien (pink) for testing controls
-        alien = Alien(center_x, center_y, (255, 192, 203, 128))
+        # Create one alien (pink) for testing
+        alien = Alien(start_x, start_y, (255, 192, 203, 128))
         alien.game_state = self.game_state
         
         # Make alien invincible for testing
-        if alien.health:  # Using the health component that's already added in Alien.__init__
+        if alien.health:
             alien.health.is_invincible = True
-            alien.health.max_health = 1000000  # Using a very large number instead of inf
-            alien.health.health = 1000000      # Using health instead of current_health
-            alien.health.max_morale = 1000000  # Also set high morale
+            alien.health.max_health = 1000000
+            alien.health.health = 1000000
+            alien.health.max_morale = 1000000
             alien.health.morale = 1000000
         
         self.aliens.append(alien)
         self.entity_manager.add_entity(alien)
         
-        # Add two cats nearby for testing AI behavior
+        # Add two cats in starting room
         cat_positions = [
-            (center_x - 2, center_y - 2),  # Top-left of alien
-            (center_x + 2, center_y - 2),  # Top-right of alien
+            (start_x - 2, start_y - 2),
+            (start_x + 2, start_y - 2),
         ]
         
-        # Create cats with basic wandering behavior
         for x, y in cat_positions:
             cat = Cat(x, y, self.game_state)
             self.cats.append(cat)
             self.entity_manager.add_entity(cat)
         
-        # Add food items in triangular pattern for testing pickup mechanics
+        # Add food items in starting room
         food_positions = [
-            (center_x - 3, center_y),    # Left
-            (center_x + 3, center_y),    # Right
-            (center_x, center_y - 3)     # Top
+            (start_x - 3, start_y),
+            (start_x + 3, start_y),
+            (start_x, start_y - 3)
         ]
         
-        # Create food items with proper positioning
         for x, y in food_positions:
             food = Food(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2)
             food.game_state = self.game_state
             self.entity_manager.add_item(food)
         
-        # Add enemies with simple patrol routes for testing AI
-        patrol_routes = [
-            [(center_x - 4, center_y - 4), (center_x - 4, center_y + 4)],  # Left vertical
-            [(center_x + 4, center_y - 4), (center_x + 4, center_y + 4)],  # Right vertical
-            [(center_x - 2, center_y + 3), (center_x + 2, center_y + 3)]   # Bottom horizontal
-        ]
+        # Add single enemy in right room
+        enemy_x = 5 * MAP_WIDTH // 6  # Right third of map
+        enemy_y = MAP_HEIGHT // 2
         
-        # Create patrolling enemies
-        for route in patrol_routes:
-            human = Human(route[0][0], route[0][1])
-            human.game_state = self.game_state
-            human.set_patrol_points(route)
-            self.enemies.append(human)
-            self.entity_manager.add_entity(human)
+        human = Human(enemy_x, enemy_y)
+        human.game_state = self.game_state
+        # Simple patrol route in enemy room
+        patrol_route = [
+            (enemy_x - 2, enemy_y - 2),
+            (enemy_x + 2, enemy_y - 2),
+            (enemy_x + 2, enemy_y + 2),
+            (enemy_x - 2, enemy_y + 2)
+        ]
+        human.set_patrol_points(patrol_route)
+        self.enemies.append(human)
+        self.entity_manager.add_entity(human)
     
     def _create_test_map(self):
-        """
-        Generate a simple enclosed testing area with walls.
-        Creates a controlled environment for testing mechanics.
-        """
-        # Fill with floor tiles for basic movement
+        """Generate three-room layout with maze in middle"""
+        # Fill with floor tiles
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 self.tilemap.set_tile(x, y, TILE_FLOOR.name)
         
-        # Create a simple enclosed area with walls
-        center_x = MAP_WIDTH // 2
-        center_y = MAP_HEIGHT // 2
-        radius = 8  # Small enclosed area for focused testing
-        
-        # Create wall boundary and outer barriers
+        # Create outer walls
         for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                dx = x - center_x
-                dy = y - center_y
-                distance = max(abs(dx), abs(dy))
-                
-                if distance == radius:
-                    self.tilemap.set_tile(x, y, TILE_WALL.name)  # Boundary walls
-                elif distance > radius:
-                    self.tilemap.set_tile(x, y, TILE_BARRIER.name)  # Outer barriers
+            self.tilemap.set_tile(x, 0, TILE_WALL.name)
+            self.tilemap.set_tile(x, MAP_HEIGHT-1, TILE_WALL.name)
+        for y in range(MAP_HEIGHT):
+            self.tilemap.set_tile(0, y, TILE_WALL.name)
+            self.tilemap.set_tile(MAP_WIDTH-1, y, TILE_WALL.name)
+        
+        # Create room dividers with openings
+        third_width = MAP_WIDTH // 3
+        for y in range(MAP_HEIGHT):
+            # Skip 3 tiles in the middle to create doorways
+            if abs(y - MAP_HEIGHT // 2) >= 2:
+                self.tilemap.set_tile(third_width, y, TILE_WALL.name)
+                self.tilemap.set_tile(2 * third_width, y, TILE_WALL.name)
+        
+        # Create maze in middle room
+        self._create_maze(third_width + 1, 1, 2 * third_width - 1, MAP_HEIGHT - 2)
+    
+    def _create_maze(self, start_x, start_y, end_x, end_y):
+        """Create a simple maze pattern in the middle room"""
+        center_y = (start_y + end_y) // 2
+        
+        # Create horizontal barriers
+        for x in range(start_x, end_x):
+            if (x - start_x) % 4 == 0:
+                for y in range(start_y, end_y):
+                    # Leave center path open AND ensure entrance/exit paths are clear
+                    if (y != center_y and  # Don't block center path
+                        abs(x - start_x) > 3 and  # Don't block left entrance
+                        abs(x - end_x) > 3):      # Don't block right entrance
+                        self.tilemap.set_tile(x, y, TILE_WALL.name)
+        
+        # Create vertical barriers
+        for y in range(start_y, end_y):
+            if (y - start_y) % 4 == 0:
+                for x in range(start_x, end_x):
+                    # Leave center path open AND ensure entrance/exit paths are clear
+                    if (x != (start_x + end_x) // 2 and  # Don't block center path
+                        abs(y - center_y) > 2):          # Don't block entrance corridors
+                        self.tilemap.set_tile(x, y, TILE_WALL.name)
     
     def update(self, dt):
         self.entity_manager.update(dt)

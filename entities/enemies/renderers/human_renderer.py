@@ -7,12 +7,18 @@ class HumanRenderer:
         self.base_size = 32
 
     def render(self, entity, surface, camera_x, camera_y):
-        # Calculate screen position
-        screen_x = entity.position.x - camera_x
-        screen_y = entity.position.y - camera_y
+        # Get zoom level from game state (default to 1 if not available)
+        zoom_level = getattr(entity.game_state, 'zoom_level', 1)
+        
+        # Calculate screen position with zoom
+        screen_x = (entity.position.x - camera_x) * zoom_level
+        screen_y = (entity.position.y - camera_y) * zoom_level
         
         # Calculate scaled size
-        scaled_size = pygame.Vector2(entity.size.x, entity.size.y)
+        scaled_size = pygame.Vector2(
+            entity.size.x * zoom_level, 
+            entity.size.y * zoom_level
+        )
         human_surface = pygame.Surface((scaled_size.x, scaled_size.y), pygame.SRCALPHA)
         
         # Modify color based on capture state
@@ -28,7 +34,9 @@ class HumanRenderer:
             self._draw_health_bar(surface, health_component, screen_x, screen_y, scaled_size)
         
         # Blit the human to the screen
-        surface.blit(human_surface, (screen_x - scaled_size.x/2, screen_y - scaled_size.y/2))
+        surface.blit(human_surface, 
+                    (screen_x - scaled_size.x/2,
+                     screen_y - scaled_size.y/2))
 
     def _draw_body(self, surface, scaled_size, color):
         # Draw body rectangle
