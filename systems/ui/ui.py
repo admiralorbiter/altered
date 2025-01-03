@@ -4,6 +4,7 @@ from entities.cat import Cat
 from entities.enemies.base_enemy import BaseEnemy
 from systems.capture_system import CaptureState
 from utils.config import *
+from systems.ui.ui_elements import StylizedUIElements
 
 # Base class for all UI elements providing core functionality for visibility, 
 # event handling, and parent-child relationships
@@ -123,13 +124,9 @@ class HUD(UIElement):
         """Initialize the HUD with health, morale, and capture controls"""
         super().__init__(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         self.game_state = game_state
+        self.stylized_ui = StylizedUIElements()
         
-        # Create status labels
-        self.health_label = Label(10, 10, "Health: 100%")
-        self.add_child(self.health_label)
-        
-        self.morale_label = Label(10, 40, "Morale: 100%")
-        self.add_child(self.morale_label)
+        # Remove old labels since we'll use new stylized elements
         
         # Add capture button
         self.capture_button = Button(10, 70, 100, 30, "Capture", self.attempt_capture)
@@ -209,6 +206,36 @@ class HUD(UIElement):
             self.release_button.visible = False
         
     def draw(self, surface):
+        if not self.visible:
+            return
+            
+        # Draw stylized UI for selected entity
+        selected_alien = next((alien for alien in self.game_state.current_level.aliens 
+                             if alien.selected), None)
+        
+        if selected_alien:
+            # Draw health orb
+            self.stylized_ui.draw_health_orb(surface, 40, 40, 
+                                           selected_alien.health.health,
+                                           selected_alien.health.max_health)
+            
+            # Draw morale bar
+            self.stylized_ui.draw_morale_bar(surface, 80, 35,
+                                           selected_alien.health.morale, 100)
+            
+            # Draw status icons
+            self.stylized_ui.draw_status_icons(surface, 200, 40, selected_alien)
+            
+            # Draw selection highlight
+            self.stylized_ui.draw_selection_highlight(surface, selected_alien,
+                                                    self.game_state.camera_x,
+                                                    self.game_state.camera_y,
+                                                    self.game_state.zoom_level)
+            
+            # Draw name tag
+            self.stylized_ui.draw_name_tag(surface, 80, 60, "Alien", id(selected_alien))
+        
+        # Draw capture/release buttons and other existing UI elements
         super().draw(surface)
 
 # UI component for handling wire placement mode and preview

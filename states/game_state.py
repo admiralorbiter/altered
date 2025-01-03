@@ -10,7 +10,7 @@ from entities.alien import Alien
 from utils.save_load import save_game, load_game
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
-from systems.ui import HUD, CaptureUI, WireUI
+from systems.ui.ui import HUD, CaptureUI, WireUI
 from systems.ai_system import AISystem
 from utils.pathfinding import PathReservationSystem
 from systems.capture_system import CaptureSystem
