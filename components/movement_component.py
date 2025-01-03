@@ -71,33 +71,28 @@ class MovementComponent(Component):
         self._force_stop = False
 
     def update(self, dt: float) -> None:
-        """Update entity position"""
-        if self._force_stop:
+        """Smooth movement between tiles"""
+        if self._force_stop or not self.moving:
             return
 
-        if not self.moving or not self.target_position:
-            return
-
-        # Calculate movement direction and distance
+        # Calculate movement with interpolation
         direction = self.target_position - self.position
         distance = direction.length()
         
-        if distance < 1.0:  # Smaller threshold for more precise stopping
-            self.position = pygame.math.Vector2(self.target_position)
-            self.entity.position = pygame.math.Vector2(self.position)
-            self.moving = False
-            self.target_position = None
-            if self._pathfinding:
-                self._pathfinding.waypoint_reached()
+        if distance < 1.0:
+            self._handle_arrival()
         else:
-            # Normalize direction and apply movement
-            normalized_dir = direction.normalize()
-            move_distance = min(self.speed * dt, distance)
-            movement = normalized_dir * move_distance
+            # Apply easing for smoother movement
+            t = min(1.0, (self.speed * dt) / distance)
+            t = self._ease_out_quad(t)  # Smooth deceleration
             
-            # Update position
-            self.position += movement
+            # Interpolate position
+            self.position = self.position.lerp(self.target_position, t)
             self.entity.position = pygame.math.Vector2(self.position)
+
+    def _ease_out_quad(self, t: float) -> float:
+        """Quadratic easing for smoother movement"""
+        return -t * (t - 2)
 
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """Draw movement debug info"""
@@ -112,3 +107,14 @@ class MovementComponent(Component):
         # Clear pathfinding state
         if self._pathfinding:
             self._pathfinding.clear_path() 
+
+    def _handle_arrival(self) -> None:
+        """Handle entity arrival at target position"""
+        self.position = pygame.math.Vector2(self.target_position)
+        self.entity.position = pygame.math.Vector2(self.position)
+        self.moving = False
+        self.target_position = None
+        
+        # Notify pathfinding component if it exists
+        if self._pathfinding:
+            self._pathfinding.waypoint_reached() 

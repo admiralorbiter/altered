@@ -105,46 +105,29 @@ class BaseEnemy(Entity, ABC):
             self.target = None 
 
     def handle_collision_separation(self, game_state):
-        """
-        Handles collision resolution between entities to prevent overlapping.
-        Implements basic separation behavior when entities get too close.
-        
-        Args:
-            game_state: Current game state for entity access
-            
-        Returns:
-            bool: True if separation was performed
-        """
+        """Enhanced separation with smoother resolution"""
         current_tile = (int(self.position.x // TILE_SIZE), 
                        int(self.position.y // TILE_SIZE))
         
-        # Check for other entities in the same tile or adjacent tiles
-        for entity in game_state.current_level.entity_manager.entities:
+        # Add small random offset to prevent perfect alignment
+        separation_distance = TILE_SIZE * (0.5 + random.uniform(-0.1, 0.1))
+        
+        # Check immediate neighbors only
+        for entity in game_state.current_level.entity_manager.get_nearby_entities(current_tile):
             if entity == self or not entity.active:
                 continue
             
-            # Calculate actual distance between entities
             distance = (entity.position - self.position).length()
-            if distance < TILE_SIZE * 0.9:  # If too close
-                # Calculate separation vector
+            if distance < TILE_SIZE:
+                # Calculate smoother separation vector
                 diff = self.position - entity.position
-                if diff.length() < 1:  # If exactly overlapping
-                    diff = pygame.math.Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
+                if diff.length() < 1:
+                    diff = pygame.math.Vector2(random.uniform(-1, 1), 
+                                             random.uniform(-1, 1))
                 
-                # Move away based on relative positions
+                # Apply separation with slight randomness
                 normalized_diff = diff.normalize()
-                separation_distance = TILE_SIZE * 0.5
-                
-                # The entity with higher x coordinate moves right, lower moves left
-                if self.position.x > entity.position.x:
-                    self.position.x += separation_distance
-                else:
-                    self.position.x -= separation_distance
-                    
-                # Recalculate path with delay to prevent immediate collision
-                if self.target and self.state == 'chase':
-                    self.path_update_timer = 0.2  # Small delay before recalculating
-                    self.moving = False
+                self.position += normalized_diff * separation_distance
                 return True
         return False 
 
