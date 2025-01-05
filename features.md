@@ -79,6 +79,33 @@
   - [x] Visual preview
   - [x] Validation checks
 
+## Systems
+
+- [x] Power System
+  - [x] Reactor placement
+  - [x] Power generation
+  - [x] Power distribution
+  - [x] Wire connections
+  - [x] Construction tasks
+
+- [x] Oxygen System
+  - [x] Grid-based oxygen simulation
+  - [x] Oxygen consumption by entities
+  - [x] Oxygen generation from life support
+  - [x] Oxygen diffusion between tiles
+  - [x] Critical oxygen damage
+  - [x] Visual oxygen indicators
+    - [x] Per-tile debug overlay
+    - [x] Ship-wide oxygen level HUD
+  - [x] Life support placement
+  - [x] Construction tasks
+  - Constants:
+    - Consumption: 0.05 per entity/second
+    - Generation: 0.2 per life support/second
+    - Diffusion: 0.1 rate between tiles
+    - Critical: 0.3 threshold for damage
+    - Damage: 5.0 per second when depleted
+
 ## Entities
 
 - [x] Alien
