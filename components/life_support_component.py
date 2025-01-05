@@ -62,18 +62,18 @@ class LifeSupportComponent(Component):
                 self._under_construction = False
                 self._is_built = True
                 
-                # Mark all occupied tiles as unwalkable in tilemap
-                if self.entity and self.entity.game_state:
-                    tilemap = self.entity.game_state.current_level.tilemap
-                    for tile_pos in self.occupied_tiles:
-                        tilemap.set_tile(tile_pos[0], tile_pos[1], 'unwalkable')
-        
         elif self.is_built and self.is_powered:
             # Generate oxygen when powered
             if self.entity.game_state and hasattr(self.entity.game_state, 'oxygen_system'):
-                self.entity.game_state.oxygen_system.add_oxygen(
-                    self.oxygen_generation_rate * dt
-                )
+                # Add oxygen to each tile around the life support
+                for dx in range(-2, 3):
+                    for dy in range(-2, 3):
+                        x = self.primary_tile[0] + dx
+                        y = self.primary_tile[1] + dy
+                        self.entity.game_state.oxygen_system.add_oxygen(
+                            x, y, 
+                            self.oxygen_generation_rate * dt / 25.0  # Distribute over area
+                        )
                 self.is_active = True
         else:
             self.is_active = False

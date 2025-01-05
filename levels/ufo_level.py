@@ -17,6 +17,7 @@ class UfoLevel(BaseLevel):
     def __init__(self, game_state):
         super().__init__(game_state)
         self.cats = []  # List of autonomous cat entities
+        self.requires_oxygen = True  # UFO level requires oxygen
         
     def initialize(self):
         """

@@ -21,6 +21,8 @@ class BaseLevel(ABC):
         self.aliens = []  # Player-controlled aliens
         self.enemies = []  # Enemy entities
         
+        self.requires_oxygen = False  # Default to not requiring oxygen
+        
     @abstractmethod
     def initialize(self):
         """Set up the level's initial state"""

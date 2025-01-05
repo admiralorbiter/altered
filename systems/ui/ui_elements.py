@@ -1,10 +1,13 @@
 import pygame
 import math
+import random
 
 class StylizedUIElements:
     def __init__(self):
         """Initialize shared resources for UI elements"""
         self.font = pygame.font.Font(None, 24)
+        self.last_o2_update = 0
+        self.o2_particles = []  # Store particle positions for animation
         
     def draw_health_orb(self, surface, x, y, health, max_health, radius=20):
         """Draw a glowing circular health indicator"""
@@ -117,3 +120,51 @@ class StylizedUIElements:
         
         # Draw text
         surface.blit(text_surface, (x + padding, y))
+
+    def draw_oxygen_indicator(self, surface, x, y, oxygen_level, width=160, height=40):
+        """Draw a simple, solid-color oxygen level indicator"""
+        # Background panel with solid color
+        panel_rect = pygame.Rect(x, y, width, height)
+        pygame.draw.rect(surface, (50, 50, 50), panel_rect, border_radius=10)  # Solid dark gray background
+        
+        # O2 level fill with solid color
+        fill_width = int(width * 0.7 * oxygen_level)  # Leave space for text
+        if fill_width > 0:
+            # Solid colors based on oxygen level
+            if oxygen_level > 0.7:
+                color = (100, 200, 255)  # Solid light blue = Good oxygen
+            elif oxygen_level > 0.3:
+                color = (255, 165, 0)    # Solid orange = Warning
+            else:
+                color = (255, 50, 50)    # Solid red = Critical
+                
+            # Draw the solid fill bar
+            fill_rect = pygame.Rect(x + 5, y + 5, fill_width, height - 10)
+            pygame.draw.rect(surface, color, fill_rect, border_radius=8)
+        
+        # Draw O2 text
+        o2_text = f"O₂: {int(oxygen_level * 100)}%"
+        text_surface = self.font.render(o2_text, True, (255, 255, 255))
+        text_x = x + width - text_surface.get_width() - 10
+        text_y = y + (height - text_surface.get_height()) // 2
+        surface.blit(text_surface, (text_x, text_y))
+
+    def _add_oxygen_particle(self):
+        """Add a new oxygen particle to the animation"""
+        self.o2_particles.append({
+            'x': random.random(),
+            'y': random.random(),
+            'dx': (random.random() - 0.5) * 0.5,
+            'dy': (random.random() - 0.5) * 0.5,
+            'life': 1.0
+        })
+    
+    def _update_oxygen_particles(self, dt):
+        """Update oxygen particle positions and lifetimes"""
+        for particle in self.o2_particles[:]:
+            particle['x'] += particle['dx'] * dt
+            particle['y'] += particle['dy'] * dt
+            particle['life'] -= dt
+            
+            if particle['life'] <= 0 or not (0 <= particle['x'] <= 1 and 0 <= particle['y'] <= 1):
+                self.o2_particles.remove(particle)

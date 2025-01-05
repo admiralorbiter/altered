@@ -241,6 +241,37 @@ class HUD(UIElement):
         
         # Draw capture/release buttons and other existing UI elements
         super().draw(surface)
+        
+        # Draw oxygen indicator if level requires it
+        if (self.game_state.current_level and 
+            self.game_state.current_level.requires_oxygen):
+            # Get average oxygen level from entire level
+            oxygen_level = self._get_local_oxygen_level()
+            self.stylized_ui.draw_oxygen_indicator(
+                surface, 
+                WINDOW_WIDTH - 180,  # Position in top-right
+                10, 
+                oxygen_level
+            )
+    
+    def _get_local_oxygen_level(self) -> float:
+        """Get average oxygen level from entire level"""
+        if not hasattr(self.game_state, 'oxygen_system'):
+            return 1.0
+        
+        total = 0
+        count = 0
+        
+        # Sample oxygen levels from entire level
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if self.game_state.oxygen_system._is_inside_ship(x, y):
+                    total += self.game_state.oxygen_system.oxygen_grid[x, y]
+                    count += 1
+        
+        if count == 0:
+            return 0.0
+        return total / count
 
 # UI component for handling wire placement mode and preview
 class WireUI(UIElement):

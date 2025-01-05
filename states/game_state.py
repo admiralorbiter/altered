@@ -22,6 +22,7 @@ from systems.camera.camera_system import CameraSystem
 from core.input_handler import InputHandler
 from entities.renderers.electrical_renderer import ElectricalRendererSystem
 from systems.power_system import PowerSystem
+from systems.oxygen_system import OxygenSystem
 
 class GameState(State):
     """
@@ -56,6 +57,7 @@ class GameState(State):
         self.build_system = BuildSystem(self)
         self.electrical_renderer = ElectricalRendererSystem()
         self.power_system = PowerSystem(self)
+        self.oxygen_system = OxygenSystem(self)
         
         # Level management
         self.levels = {
@@ -131,6 +133,7 @@ class GameState(State):
                 component.update(dt)
 
         self.power_system.update()  # Update power distribution each frame
+        self.oxygen_system.update(dt)
 
     def render(self, screen):
         """Render the game world, entities, and UI."""
