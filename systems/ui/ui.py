@@ -121,10 +121,14 @@ class Button(UIElement):
 # Heads-up display showing game status and control buttons
 class HUD(UIElement):
     def __init__(self, game_state):
-        """Initialize the HUD with health, morale, and capture controls"""
+        """Initialize the HUD with all UI components"""
         super().__init__(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         self.game_state = game_state
         self.stylized_ui = StylizedUIElements()
+        
+        # Add BuildUI as a separate component
+        self.build_ui = BuildUI(game_state)
+        self.add_child(self.build_ui)
         
         # Remove old labels since we'll use new stylized elements
         
@@ -346,3 +350,97 @@ class CaptureUI(UIElement):
         system = self.game_state.capture_system
         system.stealth_mode = not system.stealth_mode
         self.stealth_mode_btn.text = f"Stealth: {'ON' if system.stealth_mode else 'OFF'}" 
+
+class BuildUI(UIElement):
+    def __init__(self, game_state):
+        """Initialize build interface controls"""
+        super().__init__(10, WINDOW_HEIGHT - 75, 130, 25)
+        self.game_state = game_state
+        self.is_menu_open = False
+        self.current_submenu = None
+        
+        # Add build preview UI
+        self.preview_ui = BuildPreviewUI(game_state)
+        self.add_child(self.preview_ui)
+        
+        # Create build menu toggle button
+        self.build_menu_btn = Button(10, WINDOW_HEIGHT - 75, 130, 25,
+                                   "Build Menu",
+                                   self.toggle_build_menu)
+        self.add_child(self.build_menu_btn)
+        
+        # Create power submenu button (initially hidden)
+        self.power_btn = Button(10, WINDOW_HEIGHT - 110, 130, 25,
+                              "Power Systems",
+                              self.toggle_power_menu)
+        self.power_btn.visible = False
+        self.add_child(self.power_btn)
+        
+        # Create reactor button (initially hidden)
+        self.reactor_btn = Button(150, WINDOW_HEIGHT - 110, 130, 25,
+                                "Build Reactor",
+                                self.build_reactor)
+        self.reactor_btn.visible = False
+        self.add_child(self.reactor_btn)
+
+    def toggle_build_menu(self):
+        """Toggle the build menu state"""
+        self.is_menu_open = not self.is_menu_open
+        self.power_btn.visible = self.is_menu_open
+        
+        # Hide submenu items if closing main menu
+        if not self.is_menu_open:
+            self.current_submenu = None
+            self.reactor_btn.visible = False
+        
+        print(f"Build menu {'opened' if self.is_menu_open else 'closed'}")
+
+    def toggle_power_menu(self):
+        """Toggle the power submenu"""
+        if self.current_submenu == 'power':
+            self.current_submenu = None
+            self.reactor_btn.visible = False
+        else:
+            self.current_submenu = 'power'
+            self.reactor_btn.visible = True
+
+    def build_reactor(self):
+        """Start reactor placement mode"""
+        # Cancel any other placement modes
+        self.game_state.wire_mode = False
+        self.game_state.capture_system.capture_mode = False
+        
+        # Start reactor placement
+        self.game_state.build_system.start_placement('reactor')
+
+    def handle_event(self, event):
+        """Handle keyboard shortcuts for build menu"""
+        if event.type == pygame.KEYDOWN:
+            if self.is_menu_open and event.key == pygame.K_p:
+                self.toggle_power_menu()
+                return True
+        return super().handle_event(event) 
+
+class BuildPreviewUI(UIElement):
+    def __init__(self, game_state):
+        super().__init__(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.game_state = game_state
+
+    def handle_event(self, event):
+        """Handle only mouse movement for building ghost preview"""
+        if not self.game_state.build_system.is_placing:
+            return False
+            
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = pygame.mouse.get_pos()
+            self.game_state.build_system._update_ghost_position(mouse_pos)
+            return True
+            
+        return super().handle_event(event)
+
+    def draw(self, surface):
+        """Draw the ghost building preview"""
+        if not self.game_state.build_system.is_placing:
+            return
+            
+        self.game_state.build_system.draw(surface) 

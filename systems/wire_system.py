@@ -232,16 +232,25 @@ class WireSystem:
         x, y = position
         tilemap = self.game_state.current_level.tilemap
         
-        # Check adjacent tiles for other wires
+        # Check adjacent tiles for other wires or electrical components
         adjacent = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+        wire_component = tilemap.get_electrical(x, y)
+        
+        if not hasattr(wire_component, 'connected_tiles'):
+            wire_component.connected_tiles = []
+        
         for adj_pos in adjacent:
             adj_comp = tilemap.get_electrical(adj_pos[0], adj_pos[1])
-            if adj_comp and adj_comp.is_built:  # Only connect to built wires
+            if adj_comp and adj_comp.is_built:
+                # Initialize connected_tiles if it doesn't exist
+                if not hasattr(adj_comp, 'connected_tiles'):
+                    adj_comp.connected_tiles = []
+                
                 # Add mutual connections if they don't exist
                 if position not in adj_comp.connected_tiles:
                     adj_comp.connected_tiles.append(position)
-                if adj_pos not in tilemap.electrical_components[position].connected_tiles:
-                    tilemap.electrical_components[position].connected_tiles.append(adj_pos)
+                if adj_pos not in wire_component.connected_tiles:
+                    wire_component.connected_tiles.append(adj_pos)
 
     def draw(self, surface):
         """Only renders ghost wire previews"""

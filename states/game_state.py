@@ -2,6 +2,7 @@ import pygame
 
 from entities.alien import Alien
 from levels.test_level import TestLevel
+from systems.build_system import BuildSystem
 from systems.debug_ui import DebugUI
 from .base_state import State
 from utils.config import *
@@ -10,7 +11,7 @@ from entities.alien import Alien
 from utils.save_load import save_game, load_game
 from levels.ufo_level import UfoLevel
 from levels.abduction_level import AbductionLevel
-from systems.ui.ui import HUD, CaptureUI, WireUI
+from systems.ui.ui import HUD, CaptureUI, WireUI, BuildUI
 from systems.ai_system import AISystem
 from utils.pathfinding import PathReservationSystem
 from systems.capture_system import CaptureSystem
@@ -19,6 +20,7 @@ from systems.wire_system import WireSystem
 from systems.task_system import TaskSystem
 from systems.camera.camera_system import CameraSystem
 from core.input_handler import InputHandler
+from entities.renderers.electrical_renderer import ElectricalRendererSystem
 
 class GameState(State):
     """
@@ -32,17 +34,17 @@ class GameState(State):
         self.camera_system = CameraSystem(self)
         self.input_handler = InputHandler(self)
         
-        # Initialize UI elements list before adding elements
-        self.ui_elements = []
+        # Create UI container
+        self.ui = type('UI', (), {})()  # Simple object to hold UI references
         
         # Create UI elements
-        self.hud = HUD(self)
-        self.capture_ui = CaptureUI(self)
-        self.wire_ui = WireUI(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, self)
-        self.debug_ui = DebugUI(self)
+        self.ui.hud = HUD(self)
+        self.ui.capture_ui = CaptureUI(self)
+        self.ui.wire_ui = WireUI(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, self)
+        self.debug_ui = DebugUI(self)  # Keep debug_ui separate
         
-        # Add UI elements to list
-        self.ui_elements.extend([self.hud, self.capture_ui, self.wire_ui])
+        # Store UI elements for iteration
+        self.ui_elements = [self.ui.hud, self.ui.capture_ui, self.ui.wire_ui]
         
         # Initialize gameplay systems
         self.capture_system = CaptureSystem(self)
@@ -50,6 +52,8 @@ class GameState(State):
         self.path_reservation_system = PathReservationSystem()
         self.wire_system = WireSystem(self)
         self.task_system = TaskSystem(self)
+        self.build_system = BuildSystem(self)
+        self.electrical_renderer = ElectricalRendererSystem()
         
         # Level management
         self.levels = {
@@ -63,6 +67,10 @@ class GameState(State):
         self.entity_manager = EntityManager(self)
         self.current_time = 0
         self.wire_mode = False
+        
+        # Add build UI
+        self.build_ui = BuildUI(self)
+        self.ui_elements.append(self.build_ui)
 
     @property
     def zoom_level(self):
@@ -111,9 +119,15 @@ class GameState(State):
                                 self.current_level.aliens[0])
             self.camera_system.update(followed_alien)
 
-        self.hud.update(dt)
+        # Update UI elements through ui container
+        self.ui.hud.update(dt)
         self.ai_system.update(dt, self)
-    
+        
+        # Update build system components
+        for component in self.current_level.tilemap.electrical_components.values():
+            if hasattr(component, 'update'):
+                component.update(dt)
+
     def render(self, screen):
         """Render the game world, entities, and UI."""
         screen.fill(BLACK)
@@ -140,6 +154,9 @@ class GameState(State):
             
             # Draw debug UI last
             self.debug_ui.draw(screen)
+        
+        # Render build system preview
+        self.build_system.draw(screen)
         
         pygame.display.flip()
 

@@ -59,9 +59,28 @@ class InputHandler:
                     alien.capture.release_target()
             
             return True
+        elif event.key == pygame.K_b:
+            # Toggle build menu
+            if hasattr(self.game_state.ui.hud, 'build_ui'):
+                self.game_state.ui.hud.build_ui.toggle_build_menu()
+            return True
         return False
 
     def _handle_mouse_click(self, event):
+        # First check if we're in building placement mode
+        if self.game_state.build_system.is_placing:
+            if event.button == 1:  # Left click
+                if self.game_state.build_system.ghost_valid:
+                    success = self.game_state.build_system.place_building()
+                    if success:
+                        self.game_state.build_system.cancel_placement()
+                    return True
+            elif event.button == 3:  # Right click
+                self.game_state.build_system.cancel_placement()
+                return True
+            return False  # Consume other clicks while in build mode
+
+        # Handle existing click logic for other game modes
         if event.button == 1:  # Left click
             # Convert screen coordinates to world coordinates considering zoom
             mouse_x, mouse_y = pygame.mouse.get_pos()

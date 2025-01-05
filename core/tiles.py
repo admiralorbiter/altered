@@ -118,6 +118,14 @@ TILE_POWER_CONSUMER = Tile(
     description="Power consumer"
 )
 
+TILE_REACTOR = Tile(
+    id=11,
+    name="reactor",
+    color=(0, 255, 128),  # Bright green for nuclear glow
+    walkable=False,
+    description="Nuclear reactor for power generation"
+)
+
 # Dictionary for easy lookup
 TILES = {
     "floor": TILE_FLOOR,
@@ -127,7 +135,8 @@ TILES = {
     "barrier": TILE_BARRIER,
     "wire": TILE_WIRE,
     "power_source": TILE_POWER_SOURCE,
-    "power_consumer": TILE_POWER_CONSUMER
+    "power_consumer": TILE_POWER_CONSUMER,
+    "reactor": TILE_REACTOR
 }
 
 # Dictionary for ID lookup

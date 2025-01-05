@@ -157,35 +157,30 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        """Render a single electrical component"""
-        component = self.electrical_components.get((tile_x, tile_y))
-        if not component or component.type != 'wire':
-            return
+        """Render all electrical components"""
+        for pos, component in self.electrical_components.items():
+            # Only render if this is the primary tile
+            if hasattr(component, 'primary_tile') and component.primary_tile != pos:
+                continue
+                
+            screen_x = (pos[0] * TILE_SIZE - camera_x) * zoom_level
+            screen_y = (pos[1] * TILE_SIZE - camera_y) * zoom_level
+            
+            self.game_state.electrical_renderer.render(
+                component, surface, screen_x, screen_y, zoom_level
+            )
+
+    def add_electrical(self, position: tuple[int, int], component) -> bool:
+        """Add electrical component to the map"""
+        x, y = position
         
-        # Calculate screen position
-        screen_x = (tile_x * TILE_SIZE - camera_x) * zoom_level
-        screen_y = (tile_y * TILE_SIZE - camera_y) * zoom_level
-        tile_size = TILE_SIZE * zoom_level
+        # Bounds check
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+            
+        # Store in both data structures
+        key = (x, y)
+        self.electrical_components[key] = component
+        self.electrical_layer[y][x] = component
         
-        # Choose color based on construction state
-        if component.is_built:
-            wire_color = (0, 255, 255)  # Cyan for completed
-        elif component.under_construction:
-            wire_color = (255, 255, 0)  # Yellow for under construction
-        else:
-            wire_color = (128, 128, 128)  # Gray for not started
-        
-        # Draw main wire line
-        pygame.draw.line(surface, wire_color,
-                        (screen_x + tile_size * 0.2, screen_y + tile_size * 0.5),
-                        (screen_x + tile_size * 0.8, screen_y + tile_size * 0.5),
-                        int(max(2 * zoom_level, 1)))
-        
-        # Draw connection nodes
-        node_radius = max(3 * zoom_level, 2)
-        pygame.draw.circle(surface, wire_color,
-                          (int(screen_x + tile_size * 0.2), int(screen_y + tile_size * 0.5)),
-                          int(node_radius))
-        pygame.draw.circle(surface, wire_color,
-                          (int(screen_x + tile_size * 0.8), int(screen_y + tile_size * 0.5)),
-                          int(node_radius))
+        return True

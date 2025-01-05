@@ -36,10 +36,10 @@ class TestLevel(BaseLevel):
         # Make alien invincible for testing
         if alien.health:
             alien.health.is_invincible = True
-            alien.health.max_health = 1000000
-            alien.health.health = 1000000
-            alien.health.max_morale = 1000000
-            alien.health.morale = 1000000
+            alien.health.max_health = 100
+            alien.health.health = 100
+            alien.health.max_morale = 100
+            alien.health.morale = 100
         
         self.aliens.append(alien)
         self.entity_manager.add_entity(alien)
