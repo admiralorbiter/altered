@@ -5,6 +5,8 @@ from entities.enemies.base_enemy import BaseEnemy
 from systems.capture_system import CaptureState
 from utils.config import *
 from systems.ui.ui_elements import StylizedUIElements
+from systems.ui.mutation_ui import MutationMenu
+import math
 
 # Base class for all UI elements providing core functionality for visibility, 
 # event handling, and parent-child relationships
@@ -142,6 +144,12 @@ class HUD(UIElement):
         self.release_button.visible = False
         self.add_child(self.release_button)
         
+        # Add mutation menu
+        self.mutation_menu = MutationMenu(game_state)
+        self.dna_button = DNAButton(WINDOW_WIDTH - 50, WINDOW_HEIGHT // 2 - 25, 
+                                  lambda: self.mutation_menu.toggle())
+        self.add_child(self.dna_button)
+        
     def attempt_capture(self):
         """Try to capture the nearest valid target within range of selected alien"""
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
@@ -185,6 +193,7 @@ class HUD(UIElement):
             
     def update(self, dt):
         super().update(dt)
+        self.mutation_menu.update(dt)
         
         # Update button visibility based on selected alien
         selected_alien = next((alien for alien in self.game_state.current_level.aliens 
@@ -253,6 +262,8 @@ class HUD(UIElement):
                 10, 
                 oxygen_level
             )
+        
+        self.mutation_menu.draw(surface)
     
     def _get_local_oxygen_level(self) -> float:
         """Get average oxygen level from entire level"""
@@ -272,6 +283,21 @@ class HUD(UIElement):
         if count == 0:
             return 0.0
         return total / count
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_m:  # 'M' key toggles mutation menu
+                self.mutation_menu.toggle()
+                return True
+                
+        # Check for mutation slot hovering/clicking
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = pygame.mouse.get_pos()
+            if self.mutation_menu.is_open:
+                # Add hover detection logic here
+                pass
+                
+        return super().handle_event(event)
 
 # UI component for handling wire placement mode and preview
 class WireUI(UIElement):
@@ -494,3 +520,83 @@ class BuildPreviewUI(UIElement):
             return
             
         self.game_state.build_system.draw(surface) 
+
+# Add this new class to handle the DNA button
+class DNAButton(Button):
+    def __init__(self, x, y, callback):
+        super().__init__(x, y, 40, 50, "", callback)
+        self.glow_amount = 0
+        self.pulse_direction = 1
+        self.dna_color = (64, 156, 255)  # Match DNA strand color from mutation menu
+        
+    def update(self, dt):
+        # Update glow pulse effect
+        self.glow_amount += dt * self.pulse_direction
+        if self.glow_amount > 1.0:
+            self.glow_amount = 1.0
+            self.pulse_direction = -1
+        elif self.glow_amount < 0.0:
+            self.glow_amount = 0.0
+            self.pulse_direction = 1
+    
+    def draw(self, surface):
+        if not self.visible:
+            return
+            
+        # Create button surface with alpha
+        button_surface = pygame.Surface((self.rect.width, self.rect.height), 
+                                     pygame.SRCALPHA)
+        
+        # Draw DNA helix background
+        time = pygame.time.get_ticks() / 1000
+        center_x = self.rect.width // 2
+        
+        # Draw glow effect
+        glow_radius = 25 + self.glow_amount * 5
+        glow_surface = pygame.Surface((int(glow_radius * 2), 
+                                     self.rect.height), pygame.SRCALPHA)
+        
+        glow_color = (*self.dna_color, int(50 * self.glow_amount))
+        pygame.draw.circle(glow_surface, glow_color,
+                         (int(glow_radius), self.rect.height // 2),
+                         int(glow_radius))
+        
+        # Center the glow on the button
+        button_surface.blit(glow_surface, 
+                          (center_x - glow_radius, 0))
+        
+        # Draw DNA strands
+        for i in range(0, self.rect.height, 8):
+            y = i
+            offset = math.sin(y * 0.2 + time * 2) * 8
+            
+            # Draw connecting lines
+            if i % 16 == 0:
+                color = (*self.dna_color, 
+                        255 if self.is_hovered else 200)
+                pygame.draw.line(button_surface,
+                               color,
+                               (center_x + offset, y),
+                               (center_x - offset, y),
+                               2)
+                
+                # Draw nodes at ends
+                pygame.draw.circle(button_surface,
+                                 color,
+                                 (int(center_x + offset), y),
+                                 3)
+                pygame.draw.circle(button_surface,
+                                 color,
+                                 (int(center_x - offset), y),
+                                 3)
+        
+        # Draw border when hovered
+        if self.is_hovered:
+            pygame.draw.rect(button_surface, 
+                           self.dna_color,
+                           button_surface.get_rect(),
+                           2,
+                           border_radius=10)
+        
+        # Apply the button to the main surface
+        surface.blit(button_surface, self.rect) 

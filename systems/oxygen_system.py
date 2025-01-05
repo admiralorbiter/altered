@@ -81,33 +81,3 @@ class OxygenSystem:
         """Add oxygen at specified location from life support"""
         if self._is_inside_ship(x, y):
             self.oxygen_grid[x, y] = min(1.0, self.oxygen_grid[x, y] + amount) 
-    
-    def render_debug(self, surface, camera_x, camera_y, zoom_level):
-        """Render oxygen levels for debugging"""
-        if not self.game_state.current_level.requires_oxygen:
-            return
-        
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if self._is_inside_ship(x, y):
-                    screen_x = (x * TILE_SIZE - camera_x) * zoom_level
-                    screen_y = (y * TILE_SIZE - camera_y) * zoom_level
-                    size = TILE_SIZE * zoom_level
-                    
-                    # Draw oxygen level indicator
-                    oxygen = self.oxygen_grid[x, y]
-                    
-                    # Full color visualization:
-                    # - Blue = Full oxygen (100%)
-                    # - Yellow/Orange = Medium oxygen (50-99%)
-                    # - Red = Low oxygen (0-49%)
-                    if oxygen > 0.7:
-                        color = (100, 200, 255, 128)  # Light blue
-                    elif oxygen > 0.3:
-                        color = (255, 165, 0, 128)    # Orange
-                    else:
-                        color = (255, 50, 50, 128)    # Red
-                    
-                    overlay = pygame.Surface((size, size), pygame.SRCALPHA)
-                    pygame.draw.rect(overlay, color, (0, 0, size, size))
-                    surface.blit(overlay, (screen_x, screen_y)) 
