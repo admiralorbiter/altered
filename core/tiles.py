@@ -126,6 +126,15 @@ TILE_REACTOR = Tile(
     description="Nuclear reactor for power generation"
 )
 
+# Add to the existing tile definitions
+TILE_UNWALKABLE = Tile(
+    id=99,  # Use a unique ID
+    name="unwalkable",
+    color=(100, 100, 100),
+    walkable=False,
+    description="Blocked tile"
+)
+
 # Dictionary for easy lookup
 TILES = {
     "floor": TILE_FLOOR,
@@ -136,7 +145,8 @@ TILES = {
     "wire": TILE_WIRE,
     "power_source": TILE_POWER_SOURCE,
     "power_consumer": TILE_POWER_CONSUMER,
-    "reactor": TILE_REACTOR
+    "reactor": TILE_REACTOR,
+    "unwalkable": TILE_UNWALKABLE  # Add the unwalkable tile
 }
 
 # Dictionary for ID lookup

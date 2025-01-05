@@ -26,6 +26,9 @@ class TileMap:
         # Electrical layer
         self.electrical_layer = [[None for _ in range(width)] for _ in range(height)]
         self.electrical_components = {}  # (x,y) -> ElectricalComponent
+        
+        # Add collision layer
+        self.collision_layer = [[True for _ in range(width)] for _ in range(height)]
     
     def set_tile(self, x, y, tile_name: str):
         """Set a tile using its name"""
@@ -38,10 +41,18 @@ class TileMap:
             return self.tiles[y][x]
         return None
         
-    def is_walkable(self, x, y) -> bool:
-        """Check if the tile at (x,y) is walkable"""
+    def set_walkable(self, x: int, y: int, walkable: bool):
+        """Set whether a tile can be walked on"""
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self.collision_layer[y][x] = walkable
+            
+    def is_walkable(self, x: int, y: int) -> bool:
+        """Check if a tile can be walked on"""
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        # Check both the tile's inherent walkability and the collision layer
         tile = self.get_tile(x, y)
-        return tile and tile.walkable
+        return tile and tile.walkable and self.collision_layer[y][x]
         
     def set_electrical(self, x, y, component):
         """
@@ -157,14 +168,14 @@ class TileMap:
                                      int(node_radius))
 
     def render_electrical(self, surface, tile_x, tile_y, camera_x, camera_y, zoom_level):
-        """Render all electrical components"""
-        for pos, component in self.electrical_components.items():
-            # Only render if this is the primary tile
-            if hasattr(component, 'primary_tile') and component.primary_tile != pos:
-                continue
-                
-            screen_x = (pos[0] * TILE_SIZE - camera_x) * zoom_level
-            screen_y = (pos[1] * TILE_SIZE - camera_y) * zoom_level
+        """Render electrical component at the specified tile position"""
+        pos = (tile_x, tile_y)
+        component = self.electrical_components.get(pos)
+        
+        # Only render if this is the primary tile or component doesn't have a primary tile
+        if component and (not hasattr(component, 'primary_tile') or component.primary_tile == pos):
+            screen_x = (tile_x * TILE_SIZE - camera_x) * zoom_level
+            screen_y = (tile_y * TILE_SIZE - camera_y) * zoom_level
             
             self.game_state.electrical_renderer.render(
                 component, surface, screen_x, screen_y, zoom_level

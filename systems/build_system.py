@@ -108,17 +108,18 @@ class BuildSystem:
         building_info = self.building_types[self.current_building_type]
         x, y = self.ghost_position
         
-        # Create entity with proper x,y coordinates
+        # Create entity with proper x,y coordinates in world space
         world_x = x * TILE_SIZE
         world_y = y * TILE_SIZE
-        entity = Entity(world_x, world_y)
+        entity = Entity(world_x, world_y)  # Make sure Entity.__init__ accepts these parameters
+        entity.x = world_x  # Explicitly set coordinates
+        entity.y = world_y
         entity.game_state = self.game_state
         
         # Create building component
         component_class = building_info['component_class']
         building = component_class(entity)
         building.type = self.current_building_type
-        building.primary_tile = (x, y)  # Add this to track primary tile
         
         # Add to tilemap for all required tiles
         size = building_info['size']
