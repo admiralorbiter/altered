@@ -1,6 +1,7 @@
 import pygame
 from components.base_entity import Entity
 from components.reactor_component import ReactorComponent
+from components.life_support_component import LifeSupportComponent
 from utils.config import TILE_SIZE
 from typing import Dict, Type, Tuple
 from components.base_component import Component
@@ -22,16 +23,15 @@ class BuildSystem:
             'reactor': {
                 'component_class': ReactorComponent,
                 'size': (2, 2),
-                'preview_color': (0, 255, 128),
+                'preview_color': (0, 255, 128),  # Green for reactor
                 'walkable': False,
             },
-            # Easy to add new building types:
-            # 'solar_panel': {
-            #     'component_class': SolarPanelComponent,
-            #     'size': (1, 1),
-            #     'preview_color': (255, 255, 0),
-            #     'walkable': True,
-            # },
+            'life_support': {
+                'component_class': LifeSupportComponent,
+                'size': (2, 2),
+                'preview_color': (100, 150, 255),  # Blue for life support
+                'walkable': False,
+            }
         }
 
     def start_placement(self, building_type: str) -> bool:

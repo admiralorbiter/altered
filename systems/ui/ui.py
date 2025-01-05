@@ -383,6 +383,13 @@ class BuildUI(UIElement):
         self.reactor_btn.visible = False
         self.add_child(self.reactor_btn)
 
+        # Create life support button (initially hidden)
+        self.life_support_btn = Button(290, WINDOW_HEIGHT - 110, 130, 25,
+                                    "Life Support",
+                                    self.build_life_support)
+        self.life_support_btn.visible = False
+        self.add_child(self.life_support_btn)
+
     def toggle_build_menu(self):
         """Toggle the build menu state"""
         self.is_menu_open = not self.is_menu_open
@@ -392,6 +399,7 @@ class BuildUI(UIElement):
         if not self.is_menu_open:
             self.current_submenu = None
             self.reactor_btn.visible = False
+            self.life_support_btn.visible = False
         
         print(f"Build menu {'opened' if self.is_menu_open else 'closed'}")
 
@@ -400,9 +408,11 @@ class BuildUI(UIElement):
         if self.current_submenu == 'power':
             self.current_submenu = None
             self.reactor_btn.visible = False
+            self.life_support_btn.visible = False
         else:
             self.current_submenu = 'power'
             self.reactor_btn.visible = True
+            self.life_support_btn.visible = True
 
     def build_reactor(self):
         """Start reactor placement mode"""
@@ -412,6 +422,15 @@ class BuildUI(UIElement):
         
         # Start reactor placement
         self.game_state.build_system.start_placement('reactor')
+
+    def build_life_support(self):
+        """Start life support placement mode"""
+        # Cancel any other placement modes
+        self.game_state.wire_mode = False
+        self.game_state.capture_system.capture_mode = False
+        
+        # Start life support placement
+        self.game_state.build_system.start_placement('life_support')
 
     def handle_event(self, event):
         """Handle keyboard shortcuts for build menu"""
