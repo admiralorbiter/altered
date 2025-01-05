@@ -23,6 +23,7 @@ from core.input_handler import InputHandler
 from entities.renderers.electrical_renderer import ElectricalRendererSystem
 from systems.power_system import PowerSystem
 from systems.oxygen_system import OxygenSystem
+from systems.mutation_system import MutationSystem
 
 class GameState(State):
     """
@@ -35,6 +36,9 @@ class GameState(State):
         # Initialize core systems
         self.camera_system = CameraSystem(self)
         self.input_handler = InputHandler(self)
+        
+        # Initialize mutation system before UI
+        self.mutation_system = MutationSystem(self)
         
         # Create UI container
         self.ui = type('UI', (), {})()  # Simple object to hold UI references
@@ -168,11 +172,28 @@ class GameState(State):
         pygame.display.flip()
 
     def save_game_state(self, slot=None):
-        filepath = save_game(self, slot)
+        save_data = {
+            "mutations": {
+                "active": self.mutation_system.active_mutations,
+                "available": self.mutation_system.available_mutations
+            },
+            # ... rest of save data ...
+        }
+        filepath = save_game(save_data, slot)
         print(f"Game saved to: {filepath}")
     
     def load_game_state(self, filepath):
         save_data = load_game(filepath)
+        
+        # Load mutation system state
+        if "mutations" in save_data:
+            self.mutation_system.active_mutations = save_data["mutations"]["active"]
+            self.mutation_system.available_mutations = save_data["mutations"]["available"]
+            
+            # Reapply active mutations
+            for mutation_id, is_active in self.mutation_system.active_mutations.items():
+                if is_active:
+                    self.mutation_system.mutations[mutation_id]["apply"]()
         
         # Clear current entities
         self.entity_manager.clear()

@@ -47,6 +47,11 @@ class Cat(Entity):
             if hasattr(component, 'start'):
                 component.start()
 
+        self.movement_skip_chance = 0.0
+        self.base_movement_range = 1
+        self.movement_speed = 1.0
+        self.attack_speed = 1.0
+
     def update(self, dt: float) -> None:
         """Update cat and all its components"""
         if self.health and self.health.is_corpse:
@@ -151,3 +156,14 @@ class Cat(Entity):
         """Delegate damage handling to HealthComponent"""
         if self.health:
             self.health.take_damage(amount) 
+
+    def move_to(self, target_pos):
+        """Move the cat to a target position with possible skip due to mutations"""
+        if hasattr(self, 'movement_skip_chance') and random.random() < self.movement_skip_chance:
+            # Calculate an additional step in the same direction
+            direction = target_pos - self.position
+            if direction.length() > 0:
+                direction.normalize_ip()
+                target_pos += direction * TILE_SIZE
+        
+        super().move_to(target_pos)  # Call the original move_to method 

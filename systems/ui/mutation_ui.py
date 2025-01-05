@@ -7,51 +7,25 @@ class MutationMenu:
     def __init__(self, game_state):
         self.game_state = game_state
         self.is_open = False
-        self.animation_progress = 0.0  # 0.0 to 1.0
+        self.animation_progress = 0.0
         self.dna_particles = []
         self.hover_slot = None
         
-        # Define mutation slots with more detailed information
-        self.mutation_slots = [
-            {
-                "name": "Enhanced Reflexes",
-                "cost": 100,
-                "unlocked": False,
-                "pos": (0, 0),
-                "icon": "⚡",  # Using Unicode for now, can be replaced with images
-                "description": "Increases movement and attack speed by 20%",
-                "stats": ["+20% Movement Speed", "+20% Attack Speed"]
-            },
-            {
-                "name": "Night Vision",
-                "cost": 150,
-                "unlocked": False,
-                "pos": (1, 1),
-                "icon": "👁️",
-                "description": "See clearly in dark areas",
-                "stats": ["+100% Vision in darkness", "+30% Detection range"]
-            },
-            {
-                "name": "Telepathic Bond",
-                "cost": 200,
-                "unlocked": False,
-                "pos": (0, 2),
-                "icon": "🧠",
-                "description": "Share vision and status with nearby allies",
-                "stats": ["+50% Team coordination", "Shared vision radius: 10"]
-            },
-            {
-                "name": "Adaptive Camouflage",
-                "cost": 250,
-                "unlocked": False,
-                "pos": (1, 3),
-                "icon": "🦎",
-                "description": "Blend with surroundings when stationary",
-                "stats": ["-80% Detection while still", "+2s Stealth duration"]
+        # Get mutations from the mutation system
+        self.mutation_slots = []
+        for mutation_id, mutation in self.game_state.mutation_system.mutations.items():
+            slot = {
+                "id": mutation_id,
+                "name": mutation["name"],
+                "cost": mutation["cost"],
+                "unlocked": mutation["unlocked"],
+                "icon": mutation["icon"],
+                "description": mutation["description"],
+                "stats": mutation["stats"],
+                "pos": (0, 0)  # Will be updated during drawing
             }
-        ]
+            self.mutation_slots.append(slot)
         
-        # Colors for the DNA theme
         self.colors = {
             "background": (20, 22, 30, 200),
             "dna_strand": (64, 156, 255),
@@ -78,19 +52,20 @@ class MutationMenu:
                 self._add_dna_particle()
 
     def draw(self, surface):
+        """Draw the mutation menu"""
         if self.animation_progress <= 0:
             return
             
-        # Calculate menu dimensions and position
+        # Calculate menu position and size
         width = 300
-        height = 400
+        height = 410
         x = WINDOW_WIDTH - width * self.animation_progress
-        y = WINDOW_HEIGHT - height - 10
+        y = WINDOW_HEIGHT - height
         
         # Create menu surface with alpha
         menu_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         
-        # Draw background with blur effect
+        # Draw background
         self._draw_background(menu_surface, width, height)
         
         # Draw DNA helix
@@ -139,20 +114,34 @@ class MutationMenu:
 
     def _draw_mutation_slots(self, surface, width, height):
         """Draw mutation slots with icons and hover tooltips"""
-        time = pygame.time.get_ticks() / 1000
         center_x = width // 2
         
         for i, slot in enumerate(self.mutation_slots):
             y = 100 + i * 80
-            offset = math.sin(y * 0.05 + time) * 30
-            x = center_x + (offset if i % 2 == 0 else -offset)
+            x = center_x
             
-            # Update slot position
+            # Update slot position for click detection
             slot["pos"] = (x, y)
             
-            # Draw hexagonal slot background
-            color = (self.colors["unlocked"] if slot["unlocked"] 
-                    else self.colors["locked"])
+            # Get mutation state from mutation system
+            mutation = self.game_state.mutation_system.mutations[slot["id"]]
+            is_unlocked = mutation["unlocked"]
+            
+            # Draw hexagonal slot background with state-based colors
+            if is_unlocked:
+                # Bright green for unlocked mutations
+                color = (0, 255, 150)
+                # Add strong glow effect for unlocked mutations
+                glow_radius = 30
+                glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                for r in range(glow_radius, 0, -5):  # Layer the glow
+                    alpha = 100 if r == glow_radius else 50
+                    pygame.draw.circle(glow_surface, (*color, alpha), 
+                                     (glow_radius, glow_radius), r)
+                surface.blit(glow_surface, (x - glow_radius, y - glow_radius))
+            else:
+                color = self.colors["locked"]
+            
             if self.hover_slot == i:
                 color = self.colors["hover"]
             
@@ -161,23 +150,14 @@ class MutationMenu:
             pygame.draw.polygon(surface, color, points)
             pygame.draw.polygon(surface, (255, 255, 255, 30), points, 2)
             
-            # Draw icon
-            icon_font = pygame.font.Font(None, 30)
-            icon_text = icon_font.render(slot["icon"], True, (255, 255, 255))
-            icon_rect = icon_text.get_rect(center=(x, y))
-            surface.blit(icon_text, icon_rect)
+            # Draw paw icon (🐾)
+            font = pygame.font.Font(None, 36)
+            icon_color = (255, 255, 255) if is_unlocked else (150, 150, 150)
+            icon = font.render("🐾", True, icon_color)
+            surface.blit(icon, (x - icon.get_width()//2, y - icon.get_height()//2))
             
             # Draw name and cost
-            name_font = pygame.font.Font(None, 20)
-            name_text = name_font.render(slot["name"], True, (255, 255, 255))
-            cost_text = name_font.render(f"Cost: {slot['cost']}", True, (200, 200, 200))
-            
-            surface.blit(name_text, (x - name_text.get_width()//2, y + 30))
-            surface.blit(cost_text, (x - cost_text.get_width()//2, y + 45))
-            
-            # Draw tooltip if hovered
-            if self.hover_slot == i:
-                self._draw_tooltip(surface, slot, x, y)
+            self._draw_slot_content(surface, slot, x, y)
 
     def _draw_title(self, surface, width):
         """Draw the menu title with glow effect"""
@@ -277,13 +257,30 @@ class MutationMenu:
                         2)
 
     def handle_event(self, event):
-        """Handle mouse events for tooltips"""
+        """Handle mouse events for tooltips and mutation activation"""
         if not self.is_open:
             return False
             
-        if event.type == pygame.MOUSEMOTION:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Check for clicks on mutation slots
             mouse_pos = event.pos
-            # Adjust mouse position for menu position
+            menu_x = WINDOW_WIDTH - 300 * self.animation_progress
+            local_x = mouse_pos[0] - menu_x
+            local_y = mouse_pos[1] - (WINDOW_HEIGHT - 410)
+            
+            for i, slot in enumerate(self.mutation_slots):
+                x, y = slot["pos"]
+                distance = math.sqrt((local_x - x)**2 + (local_y - y)**2)
+                
+                if distance < 25:
+                    mutation_id = slot.get("id")
+                    if mutation_id and self.game_state.mutation_system.can_unlock(mutation_id):
+                        self.game_state.mutation_system.unlock_mutation(mutation_id)
+                        return True
+        
+        # Handle hover effects
+        elif event.type == pygame.MOUSEMOTION:
+            mouse_pos = event.pos
             menu_x = WINDOW_WIDTH - 300 * self.animation_progress
             local_x = mouse_pos[0] - menu_x
             local_y = mouse_pos[1] - (WINDOW_HEIGHT - 410)
@@ -292,10 +289,24 @@ class MutationMenu:
             self.hover_slot = None
             for i, slot in enumerate(self.mutation_slots):
                 x, y = slot["pos"]
-                # Simple circular hit detection
                 distance = math.sqrt((local_x - x)**2 + (local_y - y)**2)
                 if distance < 25:
                     self.hover_slot = i
                     return True
         
         return False 
+
+    def _draw_slot_content(self, surface, slot, x, y):
+        """Draw the icon and text for a mutation slot"""
+        # Draw name
+        font = pygame.font.Font(None, 24)
+        text = font.render(slot["name"], True, (255, 255, 255))
+        surface.blit(text, (x - text.get_width()//2, y + 30))
+        
+        # Draw cost
+        cost_text = font.render(f"Cost: {slot['cost']}", True, (200, 200, 200))
+        surface.blit(cost_text, (x - cost_text.get_width()//2, y + 50))
+        
+        # Draw tooltip if hovered
+        if self.hover_slot is not None and self.mutation_slots[self.hover_slot] == slot:
+            self._draw_tooltip(surface, slot, x, y) 

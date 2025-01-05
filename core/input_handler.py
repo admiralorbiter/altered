@@ -64,9 +64,17 @@ class InputHandler:
             if hasattr(self.game_state.ui.hud, 'build_ui'):
                 self.game_state.ui.hud.build_ui.toggle_build_menu()
             return True
+        elif event.key == pygame.K_m:  # Add mutation menu toggle
+            self.game_state.ui.hud.mutation_menu.toggle()
+            return True
         return False
 
     def _handle_mouse_click(self, event):
+        # First check if mutation menu wants to handle the click
+        if self.game_state.ui.hud.mutation_menu.is_open:
+            if self.game_state.ui.hud.mutation_menu.handle_event(event):
+                return True
+
         # First check if we're in building placement mode
         if self.game_state.build_system.is_placing:
             if event.button == 1:  # Left click
