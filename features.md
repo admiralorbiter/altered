@@ -127,6 +127,31 @@
     - Critical: 0.3 threshold for damage
     - Damage: 5.0 per second when depleted
 
+- [x] Mutation System
+  - [x] Mutation UI
+    - [x] Hexagonal grid layout
+    - [x] Visual feedback (glow effects)
+    - [x] Tooltips with stats
+    - [x] Cost display
+    - [x] Unlock indicators
+  - [x] Mutation Effects
+    - [x] Quick Paws
+      - [x] Movement range increase
+      - [x] Tile skip chance
+    - [ ] Enhanced Reflexes (TODO)
+    - [ ] Night Vision (TODO)
+    - [ ] Telepathic Bond (TODO)
+    - [ ] Adaptive Camouflage (TODO)
+  - [x] Mutation Points
+    - [ ] Point generation system (TODO)
+    - [ ] Cost management
+    - [ ] Prerequisites system
+  - [x] Core Features
+    - [x] Mutation unlocking
+    - [x] Effect application
+    - [x] State persistence
+    - [x] Save/Load support
+
 ## Entities
 
 - [x] Alien
