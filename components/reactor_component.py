@@ -13,6 +13,7 @@ class ReactorComponent(Component):
         self.connected_tiles = []
         self.connection_points = []
         self.occupied_tiles = []  # Track all tiles this reactor occupies
+        self.power_output = 10.0  # Each reactor provides 10 power
         
         # Calculate and store occupied tiles based on position
         base_x = entity.x // TILE_SIZE
@@ -28,6 +29,10 @@ class ReactorComponent(Component):
                     tilemap = self.entity.game_state.current_level.tilemap
                     tilemap.set_walkable(base_x + dx, base_y + dy, False)
                     
+        # Register with power system when built
+        if self.entity and self.entity.game_state:
+            self.entity.game_state.power_system.register_power_source(self)
+        
     def cleanup(self):
         """Called when component is removed/destroyed"""
         # Restore walkability when component is removed
@@ -56,3 +61,7 @@ class ReactorComponent(Component):
                     tilemap = self.entity.game_state.current_level.tilemap
                     for tile_pos in self.occupied_tiles:
                         tilemap.set_tile(tile_pos[0], tile_pos[1], 'unwalkable') 
+                
+                # Register with power system when construction completes
+                if self.entity and self.entity.game_state:
+                    self.entity.game_state.power_system.register_power_source(self) 

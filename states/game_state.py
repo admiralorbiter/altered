@@ -21,6 +21,7 @@ from systems.task_system import TaskSystem
 from systems.camera.camera_system import CameraSystem
 from core.input_handler import InputHandler
 from entities.renderers.electrical_renderer import ElectricalRendererSystem
+from systems.power_system import PowerSystem
 
 class GameState(State):
     """
@@ -54,6 +55,7 @@ class GameState(State):
         self.task_system = TaskSystem(self)
         self.build_system = BuildSystem(self)
         self.electrical_renderer = ElectricalRendererSystem()
+        self.power_system = PowerSystem(self)
         
         # Level management
         self.levels = {
@@ -127,6 +129,8 @@ class GameState(State):
         for component in self.current_level.tilemap.electrical_components.values():
             if hasattr(component, 'update'):
                 component.update(dt)
+
+        self.power_system.update()  # Update power distribution each frame
 
     def render(self, screen):
         """Render the game world, entities, and UI."""

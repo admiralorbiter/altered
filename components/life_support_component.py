@@ -33,6 +33,11 @@ class LifeSupportComponent(Component):
         self.power_consumption = 5.0  # Power needed from reactor
         self.is_powered = False
         self.is_active = False  # Whether it's currently generating oxygen
+        self.power_required = 2.0  # Each life support needs 2 power
+        
+        # Register with power system
+        if self.entity and self.entity.game_state:
+            self.entity.game_state.power_system.register_power_consumer(self, self.power_required)
 
     def cleanup(self):
         """Called when component is removed/destroyed"""

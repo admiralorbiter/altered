@@ -63,5 +63,20 @@ class LifeSupportRenderer(BaseElectricalRenderer):
             pygame.draw.circle(life_support_surface, status_color,
                              (size - margin*2, margin*2), max(3, int(5 * zoom_level)))
         
+        # Debug visualization
+        if hasattr(component, 'connected_tiles') and component.connected_tiles:
+            # Draw connection points in yellow
+            debug_color = (255, 255, 0, 128)
+            for tile_pos in component.connected_tiles:
+                rel_x = (tile_pos[0] - component.primary_tile[0]) * tile_size
+                rel_y = (tile_pos[1] - component.primary_tile[1]) * tile_size
+                pygame.draw.circle(life_support_surface, debug_color,
+                                 (rel_x, rel_y), 5)
+        
+        # Power state indicator (top-right corner)
+        power_color = (0, 255, 0, 255) if component.is_powered else (255, 0, 0, 255)
+        pygame.draw.circle(life_support_surface, power_color,
+                          (size - 10, 10), 5)
+        
         # Blit to main surface
         surface.blit(life_support_surface, (screen_x, screen_y))

@@ -182,7 +182,8 @@ class WireSystem:
         if position in self.construction_progress:
             del self.construction_progress[position]
         
-        self._update_wire_connections(position)
+        # Pass both position and wire component to update connections
+        self._update_wire_connections(position, wire)
         return True
 
     def place_wire(self, position):
@@ -227,22 +228,22 @@ class WireSystem:
             wire.under_construction = False
             wire.is_built = True
 
-    def _update_wire_connections(self, position):
+    def _update_wire_connections(self, position, wire_component):
         """Update wire connections after construction"""
         x, y = position
         tilemap = self.game_state.current_level.tilemap
         
-        # Check adjacent tiles for other wires or electrical components
-        adjacent = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
-        wire_component = tilemap.get_electrical(x, y)
-        
+        # Initialize connected_tiles if needed
         if not hasattr(wire_component, 'connected_tiles'):
             wire_component.connected_tiles = []
         
+        # Check adjacent tiles for other wires or electrical components
+        adjacent = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+        
         for adj_pos in adjacent:
             adj_comp = tilemap.get_electrical(adj_pos[0], adj_pos[1])
-            if adj_comp and adj_comp.is_built:
-                # Initialize connected_tiles if it doesn't exist
+            if adj_comp and hasattr(adj_comp, 'is_built') and adj_comp.is_built:
+                # Initialize connected_tiles if needed
                 if not hasattr(adj_comp, 'connected_tiles'):
                     adj_comp.connected_tiles = []
                 
@@ -251,6 +252,10 @@ class WireSystem:
                     adj_comp.connected_tiles.append(position)
                 if adj_pos not in wire_component.connected_tiles:
                     wire_component.connected_tiles.append(adj_pos)
+        
+        # After updating connections, trigger power system update
+        if hasattr(self.game_state, 'power_system'):
+            self.game_state.power_system.update()
 
     def draw(self, surface):
         """Only renders ghost wire previews"""
