@@ -81,6 +81,27 @@
 
 ## Systems
 
+- [x] Capture System
+  - [x] Entity States
+    - [x] None (Default)
+    - [x] Marked (Target selected)
+    - [x] Unconscious (Knocked out)
+    - [x] Being Carried
+    - [x] Captured
+  - [x] Mechanics
+    - [x] Target marking
+    - [x] Stealth vs Force approach
+    - [x] Knockout attempts
+      - 95% success chance when stealthy
+      - 40% base chance in combat (scaled by attacker health)
+    - [x] Carrying system
+      - [x] Speed reduction while carrying
+      - [x] Drop/pickup controls
+    - [x] Unconscious timer (10 seconds)
+  - [x] Mode toggles
+    - [x] Lethal/Non-lethal toggle
+    - [x] Stealth/Force toggle
+
 - [x] Power System
   - [x] Reactor placement
   - [x] Power generation
