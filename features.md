@@ -127,6 +127,22 @@
     - Critical: 0.3 threshold for damage
     - Damage: 5.0 per second when depleted
 
+- [x] Enemy Vision System
+  - [ ] BUG: Visuals not matching FOV angle
+  - [x] Field of View (FOV)
+    - [x] Configurable FOV angle (Humans: 120°, Base: 90°)
+    - [x] Visual direction indicator
+    - [x] Detection range visualization
+    - [x] FOV-based target detection
+  - [x] Target Awareness
+    - [x] Only detect targets within FOV cone
+    - [x] 1-second memory of lost targets
+    - [x] Stealth detection integration
+  - [x] Visual Feedback
+    - [x] FOV cone visualization
+    - [x] Direction indicator
+    - [x] Detection range overlay
+
 - [x] Mutation System
   - [x] Mutation UI
     - [x] Hexagonal grid layout
@@ -207,4 +223,19 @@
   - [x] Outdoor environment
   - [x] Strategic barriers
   - [x] Terrain variety
+
+- [x] Stealth System
+  - [x] Stealth toggle mechanics
+    - [x] 5 second duration
+    - [x] 8 second recharge time
+  - [x] Visual feedback
+    - [x] Pulsing glow effect
+    - [x] Alpha transparency
+  - [x] Gameplay effects
+    - [x] Invisibility to enemy detection
+    - [x] Immunity to enemy attacks
+    - [x] Cooldown management
+  - [x] UI Integration
+    - [x] Stealth toggle button
+    - [x] Visual state feedback
 
