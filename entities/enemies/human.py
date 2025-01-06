@@ -1,4 +1,5 @@
 import pygame
+import math
 
 from systems.capture_system import CaptureState
 from .base_enemy import BaseEnemy
@@ -7,10 +8,12 @@ from utils.pathfinding import find_path
 from .renderers.human_renderer import HumanRenderer
 from .renderers.capture_effect_renderer import CaptureEffectRenderer
 from .renderers.detection_range_renderer import DetectionRangeRenderer
+from .renderers.fov_renderer import FOVRenderer
 from components.movement_component import MovementComponent
 from components.health_component import HealthComponent
 from components.pathfinding_component import PathfindingComponent
 from components.human_ai_component import HumanAIComponent
+
 
 class Human(BaseEnemy):
     """
@@ -34,8 +37,13 @@ class Human(BaseEnemy):
         self.attack_cooldown = 1.0
         self.attack_timer = 0
         
+        # Override base enemy detection properties
+        self.detection_range = TILE_SIZE * 4  # Shorter visual range
+        self.fov_angle = 120  # Wider FOV than base class (90)
+        
         # Add components
         self.movement = MovementComponent(self)
+        self.movement.speed = 25  # Even slower for better testing
         self.add_component(self.movement)
         
         self.health = self.add_component(HealthComponent(self, max_health=80))
@@ -59,11 +67,18 @@ class Human(BaseEnemy):
         self.detection_renderer = DetectionRangeRenderer()
         self.character_renderer = HumanRenderer(color=(200, 150, 150, 200))
         self.capture_renderer = CaptureEffectRenderer()
+        
+        # FOV specific attributes
+        self.fov_angle = 120  # Wider FOV than base class
+        self.view_direction = pygame.math.Vector2(1, 0)
+        self.fov_renderer = FOVRenderer()
 
     def update(self, dt):
         if self.capture_state != CaptureState.NONE:
             self._handle_captured_state(dt)
             return
+        
+        self.update_view_direction(dt)
         
         super().update(dt)
         
@@ -97,6 +112,7 @@ class Human(BaseEnemy):
         self.detection_renderer.render(self, surface, camera_x, camera_y)
         self.capture_renderer.render(self, surface, camera_x, camera_y)
         self.character_renderer.render(self, surface, camera_x, camera_y)
+        self.fov_renderer.render(self, surface, camera_x, camera_y)
 
     def set_target(self, tile_x, tile_y):
         """
@@ -182,3 +198,16 @@ class Human(BaseEnemy):
             return True
             
         return False 
+
+    def update_view_direction(self, dt):
+        """Update view direction based on movement or target"""
+        if self.moving and self.target_position:
+            # Update direction based on movement
+            movement_dir = self.target_position - self.position
+            if movement_dir.length_squared() > 0:
+                self.view_direction = movement_dir.normalize()
+        elif self.target:
+            # Update direction to face target
+            to_target = self.target.position - self.position
+            if to_target.length_squared() > 0:
+                self.view_direction = to_target.normalize() 

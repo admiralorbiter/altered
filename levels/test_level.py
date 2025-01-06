@@ -73,12 +73,14 @@ class TestLevel(BaseLevel):
         
         human = Human(enemy_x, enemy_y)
         human.game_state = self.game_state
-        # Simple patrol route in enemy room
+        
+        # Create a 10x10 square patrol route
         patrol_route = [
-            (enemy_x - 2, enemy_y - 2),
-            (enemy_x + 2, enemy_y - 2),
-            (enemy_x + 2, enemy_y + 2),
-            (enemy_x - 2, enemy_y + 2)
+            (enemy_x - 5, enemy_y - 5),      # Top-left
+            (enemy_x + 5, enemy_y - 5),      # Top-right
+            (enemy_x + 5, enemy_y + 5),      # Bottom-right
+            (enemy_x - 5, enemy_y + 5),      # Bottom-left
+            (enemy_x - 5, enemy_y - 5)       # Back to start to complete the square
         ]
         human.set_patrol_points(patrol_route)
         self.enemies.append(human)

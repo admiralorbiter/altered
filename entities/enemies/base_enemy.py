@@ -4,6 +4,7 @@ import pygame
 from systems.capture_system import CaptureState
 from utils.config import *
 import random
+import math
 
 from utils.pathfinding import find_path
 from components.capture_component import CaptureComponent
@@ -40,6 +41,11 @@ class BaseEnemy(Entity, ABC):
         self.detection_range = TILE_SIZE * 5  # Range for detecting targets
         self.attack_range = TILE_SIZE * 1.5   # Range for initiating attacks
         
+        # Field of View properties
+        self.fov_angle = 90  # Field of view in degrees
+        self.view_direction = pygame.math.Vector2(1, 0)  # Initial direction (facing right)
+        self.rotation_speed = 180  # Degrees per second
+        
         # Capture system integration
         self.capture_state = CaptureState.NONE  # Current capture status
         self.unconscious_timer = 0  # Timer for unconscious state
@@ -75,7 +81,9 @@ class BaseEnemy(Entity, ABC):
         
         # Check aliens
         for alien in game_state.current_level.aliens:
-            if alien.active and not (hasattr(alien, 'health') and alien.health.is_corpse):
+            if (alien.active and 
+                not (hasattr(alien, 'health') and alien.health.is_corpse) and 
+                self.is_aware_of(alien)):
                 distance = (alien.position - self.position).length()
                 if distance < min_distance:
                     min_distance = distance
@@ -83,7 +91,7 @@ class BaseEnemy(Entity, ABC):
                     
         # Check cats
         for cat in game_state.current_level.cats:
-            if cat.active and not cat.is_dead:
+            if cat.active and not cat.is_dead and self.is_aware_of(cat):
                 distance = (cat.position - self.position).length()
                 if distance < min_distance:
                     min_distance = distance
@@ -101,8 +109,18 @@ class BaseEnemy(Entity, ABC):
                 self.state = 'patrol'
                 self.target = None
         else:
-            self.state = 'patrol'
-            self.target = None 
+            # If we lose sight of target, keep last known position for a short time
+            if self.state == 'chase' and self.target:
+                # Keep chasing for a short time even if target leaves FOV
+                if not hasattr(self, 'lost_target_timer'):
+                    self.lost_target_timer = 1.0  # 1 second memory
+                self.lost_target_timer -= dt
+                if self.lost_target_timer <= 0:
+                    self.state = 'patrol'
+                    self.target = None
+            else:
+                self.state = 'patrol'
+                self.target = None
 
     def handle_collision_separation(self, game_state):
         """Enhanced separation with smoother resolution"""
@@ -132,13 +150,28 @@ class BaseEnemy(Entity, ABC):
         return False 
 
     def is_aware_of(self, entity):
-        """Check if enemy is aware of the given entity"""
+        """Check if enemy is aware of the given entity using FOV"""
         if self.capture_state in [CaptureState.UNCONSCIOUS, CaptureState.BEING_CARRIED]:
             return False
             
-        if self.awareness_level > 0:
-            distance = (entity.position - self.position).length()
-            return distance < self.detection_range
+        # Calculate vector to target
+        to_target = entity.position - self.position
+        distance = to_target.length()
+        
+        # Check if within detection range
+        if distance > self.detection_range:
+            return False
+            
+        # Check if within FOV angle
+        if distance > 0:  # Prevent division by zero
+            # Calculate angle between view direction and target
+            angle = math.degrees(
+                math.acos(
+                    max(-1.0, min(1.0, to_target.normalize().dot(self.view_direction)))
+                )
+            )
+            return angle <= self.fov_angle / 2
+                
         return False
         
     def update(self, dt):
@@ -182,3 +215,22 @@ class BaseEnemy(Entity, ABC):
         
         # Continue with normal rendering
         super().render_with_offset(surface, camera_x, camera_y) 
+
+    def update_view_direction(self, dt):
+        """Update view direction based on movement or target"""
+        if self.state == 'chase' and self.target:
+            # When chasing, always face the target
+            to_target = self.target.position - self.position
+            if to_target.length_squared() > 0:
+                # Ensure view direction points towards target
+                self.view_direction = to_target.normalize()
+        elif self.moving and self.target_position:
+            # When moving (patrolling), face movement direction
+            movement_dir = self.target_position - self.position
+            if movement_dir.length_squared() > 0:
+                # Ensure view direction points in movement direction
+                self.view_direction = movement_dir.normalize()
+                
+        # Ensure view_direction is always normalized
+        if self.view_direction.length_squared() > 0:
+            self.view_direction.normalize_ip() 

@@ -114,6 +114,15 @@ class AISystem:
                           int(enemy.position.y // TILE_SIZE))
             target_point = enemy.patrol_points[enemy.current_patrol_index]
             
+            # Update view direction to face next patrol point immediately
+            target_pos = pygame.math.Vector2(
+                (target_point[0] + 0.5) * TILE_SIZE,
+                (target_point[1] + 0.5) * TILE_SIZE
+            )
+            to_target = target_pos - enemy.position
+            if to_target.length_squared() > 0:
+                enemy.view_direction = to_target.normalize()
+            
             # Calculate path to next patrol point using A* pathfinding
             enemy.path = find_path(current_tile, target_point, game_state.current_level.tilemap)
             if enemy.path:
@@ -148,6 +157,11 @@ class AISystem:
             current_pos = enemy.position
             target_pos = enemy.target.position
             distance = (target_pos - current_pos).length()
+            
+            # Update view direction to face target immediately
+            to_target = target_pos - current_pos
+            if to_target.length_squared() > 0:
+                enemy.view_direction = to_target.normalize()
             
             # If target is beyond minimum distance, calculate path to chase
             if distance > enemy.min_distance:
