@@ -151,6 +151,10 @@ class Human(BaseEnemy):
         if not target or not hasattr(target, 'take_damage'):
             return False
             
+        # Add stealth check
+        if hasattr(target, 'is_stealthed') and target.is_stealthed:
+            return False
+            
         distance = (target.position - self.position).length()
         if distance > self.attack_range:
             return False

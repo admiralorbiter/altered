@@ -8,6 +8,7 @@ from components.selectable_component import SelectableComponent
 from components.capture_component import CaptureComponent
 from components.pathfinding_component import PathfindingComponent
 from components.wire_component import WireComponent
+import math
 
 class Alien(Entity):
     """
@@ -36,6 +37,9 @@ class Alien(Entity):
         for component in self.components.values():
             if hasattr(component, 'start'):
                 component.start()
+        
+        # Add stealth properties
+        self.stealth_alpha = 128  # Base alpha for stealth effect
 
     @property
     def capture_range(self) -> float:
@@ -102,7 +106,27 @@ class Alien(Entity):
         Render alien and all its components with camera offset.
         Delegates to component-based rendering.
         """
-        # Use the base entity's render_with_offset which will call component renders
+        if not self.active:
+            return
+            
+        # Apply stealth visual effect
+        if self.is_stealthed:
+            # Create stealth effect surface
+            screen_x = (self.position.x - camera_x) * self.game_state.zoom_level
+            screen_y = (self.position.y - camera_y) * self.game_state.zoom_level
+            
+            # Add stealth glow effect
+            glow_radius = int(40 * self.game_state.zoom_level)
+            glow_surface = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+            
+            # Pulsing stealth effect
+            alpha = int(self.stealth_alpha + math.sin(pygame.time.get_ticks() * 0.005) * 30)
+            pygame.draw.circle(glow_surface, (0, 255, 255, alpha), 
+                             (glow_radius, glow_radius), glow_radius)
+            surface.blit(glow_surface, 
+                        (screen_x - glow_radius, screen_y - glow_radius))
+            
+        # Continue with normal rendering
         super().render_with_offset(surface, camera_x, camera_y) 
 
     def set_target(self, tile_x: int, tile_y: int) -> None:

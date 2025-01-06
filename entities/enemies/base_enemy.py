@@ -151,6 +151,10 @@ class BaseEnemy(Entity, ABC):
 
     def is_aware_of(self, entity):
         """Check if enemy is aware of the given entity using FOV"""
+        # Add stealth check at the start
+        if hasattr(entity, 'is_stealthed') and entity.is_stealthed:
+            return False
+        
         if self.capture_state in [CaptureState.UNCONSCIOUS, CaptureState.BEING_CARRIED]:
             return False
             

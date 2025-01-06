@@ -403,10 +403,17 @@ class CaptureUI(UIElement):
             self.stealth_mode_btn.text = "Stealth: OFF"
 
     def toggle_stealth_mode(self):
-        """Toggle stealth mode for capture operations"""
-        system = self.game_state.capture_system
-        system.stealth_mode = not system.stealth_mode
-        self.stealth_mode_btn.text = f"Stealth: {'ON' if system.stealth_mode else 'OFF'}" 
+        """Toggle stealth mode for selected alien"""
+        # Get selected alien
+        selected_alien = next((alien for alien in self.game_state.current_level.aliens 
+                             if alien.selected), None)
+                             
+        if selected_alien:
+            if selected_alien.toggle_stealth():
+                self.stealth_mode_btn.text = f"Stealth: {'ON' if selected_alien.is_stealthed else 'OFF'}"
+            else:
+                # Could add visual/audio feedback that stealth is on cooldown
+                pass
 
 class BuildUI(UIElement):
     def __init__(self, game_state):

@@ -20,6 +20,12 @@ class Entity:
         self.color = WHITE
         self.active = True
         self.game_state = None
+        
+        # Add stealth properties
+        self.is_stealthed = False
+        self.stealth_cooldown = 0
+        self.stealth_duration = 5.0  # 5 seconds of stealth
+        self.stealth_recharge_time = 8.0  # 8 seconds to recharge
 
     def add_component(self, component: Component) -> Component:
         """
@@ -80,6 +86,15 @@ class Entity:
             if component.active:
                 component.update(dt)
 
+        # Update stealth cooldown
+        if self.stealth_cooldown > 0:
+            self.stealth_cooldown -= dt
+            if self.stealth_cooldown <= 0:
+                self.is_stealthed = False
+                self.stealth_cooldown = -self.stealth_recharge_time  # Start recharge
+        elif self.stealth_cooldown < 0:  # Recharging
+            self.stealth_cooldown += dt
+
     def render(self, surface, camera_x: float, camera_y: float) -> None:
         """
         Render entity and all its components.
@@ -131,3 +146,12 @@ class Entity:
                            (screen_x - scaled_size.x/2,
                             screen_y - scaled_size.y/2,
                             scaled_size.x, scaled_size.y))
+
+    def toggle_stealth(self) -> bool:
+        """Toggle stealth mode if available"""
+        if self.stealth_cooldown <= 0:
+            self.is_stealthed = not self.is_stealthed
+            if self.is_stealthed:
+                self.stealth_cooldown = self.stealth_duration
+            return True
+        return False
